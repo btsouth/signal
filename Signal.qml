@@ -98,10 +98,10 @@ Panel {
     if (issue.isNew) return "NEW"
     return "ONGOING"
   }
-  function sparkMaximum(stats) {
+  function sparkMaximum(activity) {
     var maximum = 1
-    if (!Array.isArray(stats)) return maximum
-    for (var i = 0; i < stats.length; i++) maximum = Math.max(maximum, Number(stats[i][1] || 0))
+    if (!Array.isArray(activity)) return maximum
+    for (var i = 0; i < activity.length; i++) maximum = Math.max(maximum, Number(activity[i] || 0))
     return maximum
   }
 
@@ -382,7 +382,7 @@ Panel {
                     id: spark
                     width: parent.width
                     height: Style.space(22)
-                    readonly property real maximum: root.sparkMaximum(issueRow.modelData.stats)
+                    readonly property real maximum: root.sparkMaximum(issueRow.modelData.activity)
                     Rectangle {
                       anchors.left: parent.left
                       anchors.right: parent.right
@@ -392,13 +392,13 @@ Panel {
                       opacity: 0.22
                     }
                     Repeater {
-                      model: issueRow.modelData.stats.length
+                      model: issueRow.modelData.activity.length
                       delegate: Rectangle {
                         required property int index
-                        readonly property int sampleCount: issueRow.modelData.stats.length
+                        readonly property int sampleCount: issueRow.modelData.activity.length
                         readonly property real gap: Style.space(2)
                         width: Math.max(2, (spark.width - Math.max(0, sampleCount - 1) * gap) / Math.max(1, sampleCount))
-                        height: Math.max(2, spark.height * Number(issueRow.modelData.stats[index][1] || 0) / spark.maximum)
+                        height: Math.max(2, spark.height * Number(issueRow.modelData.activity[index] || 0) / spark.maximum)
                         x: index * (width + gap)
                         anchors.bottom: spark.bottom
                         color: root.severityColor(issueRow.modelData)

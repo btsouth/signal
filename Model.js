@@ -15,6 +15,8 @@ function normalizedIssue(raw) {
   var project = raw.project || {}
   var metadata = raw.metadata || {}
   var stats = raw.stats && Array.isArray(raw.stats["24h"]) ? raw.stats["24h"] : []
+  var activity = []
+  for (var i = 0; i < stats.length; i++) activity.push(number(stats[i] && stats[i][1], 0))
   return {
     id: String(raw.id || ""),
     shortId: String(raw.shortId || raw.id || ""),
@@ -39,7 +41,7 @@ function normalizedIssue(raw) {
     firstRelease: raw.firstRelease ? String(raw.firstRelease.shortVersion || raw.firstRelease.version || "") : "",
     lastRelease: raw.lastRelease ? String(raw.lastRelease.shortVersion || raw.lastRelease.version || "") : "",
     hasSeen: raw.hasSeen === true,
-    stats: stats
+    activity: activity
   }
 }
 
@@ -70,15 +72,4 @@ function affectedUsers(rows) {
   var total = 0
   for (var i = 0; i < rows.length; i++) total += number(rows[i].userCount, 0)
   return total
-}
-
-function sparklinePoints(stats, width, height) {
-  if (!Array.isArray(stats) || stats.length < 2) return []
-  var maximum = 1
-  for (var i = 0; i < stats.length; i++) maximum = Math.max(maximum, number(stats[i][1], 0))
-  var points = []
-  for (var j = 0; j < stats.length; j++) {
-    points.push({ x: width * j / (stats.length - 1), y: height - (height * number(stats[j][1], 0) / maximum) })
-  }
-  return points
 }
