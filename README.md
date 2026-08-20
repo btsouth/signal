@@ -44,16 +44,19 @@ Open Signal and choose **Connect Sentry**. The setup terminal asks for:
 2. Your Sentry API origin (`https://us.sentry.io` or `https://de.sentry.io` when the organization uses a regional data silo; otherwise `https://sentry.io`)
 3. An authentication token
 
-Recommended token scopes:
+Recommended token scopes follow least privilege:
 
-- `org:read`
-- `project:read`
 - `event:read`
 - `event:write` for Resolve and Archive
 
 Signal checks the organization and read permissions before changing anything. The token is written to Secret Service through `secret-tool`; it is never stored in the plugin directory, configuration, logs, QML state, or a child-process argument. API requests feed the authorization header to `curl` over standard input. The organization and base URL are stored in `~/.config/omarchy/signal/config.json` with user-only permissions.
 
-Run **Connect Sentry** again at any time to verify or replace the connection. To disconnect completely, remove the Secret Service item with `secret-tool clear service omarchy-signal account sentry-api-token` and delete `~/.config/omarchy/signal/`.
+Run **Connect Sentry** again at any time to verify or replace the connection. To disconnect completely, replace `YOUR_ORG_SLUG` below and then remove Signal's local configuration:
+
+```bash
+secret-tool clear service tsouth89.signal organization YOUR_ORG_SLUG
+rm -r ~/.config/omarchy/signal
+```
 
 ## Keyboard controls
 
@@ -62,6 +65,8 @@ Run **Connect Sentry** again at any time to verify or replace the connection. To
 | `↑` / `↓` | Select an issue |
 | `Enter` | Open the issue in Sentry |
 | `/` | Search the current inbox |
+| `1`–`5` | Select Attention, All, Regressed, Escalating, or Ongoing |
+| `[` / `]` | Select the previous or next project |
 | `X` | Resolve the selected issue |
 | `I` | Archive the selected issue |
 | `R` | Refresh |

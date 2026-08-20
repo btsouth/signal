@@ -24,7 +24,17 @@ while (($#)); do
   esac
 done
 
+if ! command -v jq >/dev/null; then
+  printf '%s\n' '{"state":"error","message":"Signal needs jq (included with Omarchy).","issues":[]}'
+  exit 1
+fi
 emit_error() { jq -n --arg message "$1" '{state:"error",message:$message,issues:[]}'; }
+validate_origin() {
+  local origin_re='^https://([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*|\[[0-9A-Fa-f:]+\])(:([0-9]{1,5}))?$' port
+  [[ $1 =~ $origin_re ]] || return 1
+  port=${BASH_REMATCH[6]:-}
+  [[ -z $port ]] || ((10#$port >= 1 && 10#$port <= 65535))
+}
 [[ $limit =~ ^[0-9]+$ ]] && ((limit >= 10 && limit <= 100)) || { emit_error "Issue limit must be between 10 and 100."; exit 2; }
 case "$sort" in date|freq|inbox|new|recommended|trends|user) ;; *) emit_error "Unsupported Sentry sort order."; exit 2 ;; esac
 [[ $environment != *$'\n'* && $environment != *$'\r'* ]] || { emit_error "Environment contains invalid characters."; exit 2; }
@@ -50,14 +60,13 @@ if [[ ! -r $config_file ]]; then
   exit 0
 fi
 
-command -v jq >/dev/null || { emit_error "Signal needs jq (included with Omarchy)."; exit 1; }
 command -v curl >/dev/null || { emit_error "Signal needs curl (included with Omarchy)."; exit 1; }
 command -v secret-tool >/dev/null || { emit_error "Signal needs libsecret to read its token securely."; exit 1; }
 
 organization=$(jq -r '.organization // empty' "$config_file" 2>/dev/null)
 base_url=$(jq -r '.baseUrl // "https://sentry.io"' "$config_file" 2>/dev/null)
 [[ $organization =~ ^[A-Za-z0-9._-]+$ ]] || { emit_error "Signal configuration has an invalid organization slug."; exit 1; }
-[[ $base_url =~ ^https://[^/]+(:[0-9]+)?$ ]] || { emit_error "Signal configuration has an invalid Sentry URL."; exit 1; }
+validate_origin "$base_url" || { emit_error "Signal configuration has an invalid Sentry URL."; exit 1; }
 [[ $issue_id =~ ^[0-9]*$ ]] || { emit_error "Invalid Sentry issue id."; exit 2; }
 
 token=$(secret-tool lookup service tsouth89.signal organization "$organization" 2>/dev/null || true)
@@ -72,10 +81,10 @@ headers=$(mktemp)
 trap 'rm -f "$tmp" "$headers"' EXIT
 request() {
   local method=$1 url=$2 body=${3:-}
-  local args=(-sS --connect-timeout 5 --max-time 20 -X "$method" -D "$headers" -o "$tmp" -w '%{http_code}' -H 'Accept: application/json')
+  local args=(--proto '=https' --proto-redir '=https' -sS --connect-timeout 5 --max-time 20 -X "$method" -D "$headers" -o "$tmp" -w '%{http_code}' -H 'Accept: application/json')
   [[ -z $body ]] || args+=(-H 'Content-Type: application/json' --data "$body")
   local status curl_exit
-  status=$(printf 'header = "Authorization: Bearer %s"\n' "$token" | curl --config - "${args[@]}" "$url")
+  status=$(printf 'header = "Authorization: Bearer %s"\n' "$token" | curl -q --config - "${args[@]}" "$url")
   curl_exit=$?
   if ((curl_exit != 0)); then return "$curl_exit"; fi
   printf '%s' "$status"
@@ -101,6 +110,13 @@ rate_limit_json() {
   jq -nc --arg remaining "$remaining" --arg reset "$reset" --arg limit "$limit_value" '{remaining:(try ($remaining|tonumber) catch null),reset:(try ($reset|tonumber) catch null),limit:(try ($limit|tonumber) catch null)}'
 }
 
+serve_stale() {
+  local stale_message=$1 rate
+  [[ -r $cache_file ]] && jq -e '.issues | type == "array"' "$cache_file" >/dev/null 2>&1 || return 1
+  rate=$(rate_limit_json)
+  jq --arg message "$stale_message" --argjson rate "$rate" '.stale=true | .message=$message | .rateLimit=$rate' "$cache_file"
+}
+
 case "$action" in
   fetch)
     query='is:unresolved'
@@ -109,18 +125,17 @@ case "$action" in
     url="$base_url/api/0/organizations/$organization/issues/?query=$encoded_query&statsPeriod=24h&groupStatsPeriod=24h&sort=$sort&limit=$limit"
     [[ -z $environment ]] || url+="&environment=$encoded_environment"
     state_home=${XDG_STATE_HOME:-$HOME/.local/state}
-    scope=$(printf '%s\n%s' "$organization" "$environment" | sha256sum | cut -c1-20)
+    scope=$(printf '%s\n%s\n%s' "$base_url" "$organization" "$environment" | sha256sum | cut -c1-20)
     state_dir="$state_home/omarchy/signal/$scope"
     cache_file="$state_dir/issues.json"
     seen_file="$state_dir/regressions.json"
     if ! status=$(request GET "$url"); then
-      if [[ -r $cache_file ]] && jq -e '.issues | type == "array"' "$cache_file" >/dev/null 2>&1; then
-        jq '.stale=true | .message="Sentry is unreachable. Showing the last successful refresh."' "$cache_file"
-        exit 0
-      fi
+      if serve_stale "Sentry is unreachable. Showing the last successful refresh."; then exit 0; fi
       emit_error "Could not reach Sentry."; exit 1
     fi
     if [[ $status != 200 ]]; then
+      if [[ $status == 429 ]] && serve_stale "Sentry rate-limited Signal. Showing the last successful refresh."; then exit 0; fi
+      if [[ $status =~ ^5[0-9][0-9]$ ]] && serve_stale "Sentry is temporarily unavailable. Showing the last successful refresh."; then exit 0; fi
       emit_error "$(api_error_message "$status" "Sentry rejected the issue request.")"
       exit 1
     fi

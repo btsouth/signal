@@ -25,6 +25,7 @@ Item {
   readonly property int userCount: Model.affectedUsers(issues)
   readonly property int attentionCount: regressionCount + escalatingCount
   readonly property bool alarming: attentionCount > 0
+  readonly property bool busy: loading || fetcher.running || actor.running
   readonly property int refreshIntervalSec: intSetting("refreshIntervalSec", 300, 60, 3600)
 
   function setting(name, fallback) {
@@ -56,10 +57,11 @@ Item {
     fetcher.command = command
     fetcher.running = true
   }
+  function refreshIfIdle() { if (!fetcher.running && !actor.running) refresh() }
   function act(action, issueId) {
     if (fetcher.running || actor.running || boolSetting("demoMode", false)) return
     actionIssueId = String(issueId || "")
-    actionMessage = action === "resolve" ? "Resolving issue…" : "Ignoring issue…"
+    actionMessage = action === "resolve" ? "Resolving issue…" : "Archiving issue…"
     actor.command = [helperPath("signal-api"), "--action", action, "--issue", actionIssueId]
     actor.running = true
   }
@@ -100,7 +102,7 @@ Item {
     repeat: true
     running: true
     triggeredOnStart: true
-    onTriggered: root.refresh()
+    onTriggered: root.refreshIfIdle()
   }
   Process {
     id: fetcher

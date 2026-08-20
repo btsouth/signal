@@ -10,6 +10,7 @@ cat >"$tmp/bin/secret-tool" <<'EOF'
 #!/usr/bin/env bash
 if [[ $1 == store ]]; then
   read -r token
+  [[ ${MOCK_STORE_FAIL:-false} != true ]] || exit 1
   printf '%s' "$token" >"${STORED_TOKEN_FILE:?}"
 fi
 EOF
@@ -24,7 +25,7 @@ chmod +x "$tmp/bin/"*
 
 run_setup() {
   printf '%s\n%s\n%s\n\n' 'acme' 'https://sentry.example' 'test-token' |
-    PATH="$tmp/bin:$PATH" XDG_CONFIG_HOME="$tmp/config" STORED_TOKEN_FILE="$tmp/token" "$root/scripts/signal-setup"
+    PATH="$tmp/bin:$PATH" XDG_CONFIG_HOME="$tmp/config" STORED_TOKEN_FILE="$tmp/token" MOCK_STORE_FAIL="${MOCK_STORE_FAIL:-false}" "$root/scripts/signal-setup"
 }
 
 MOCK_STATUS=401 run_setup >"$tmp/rejected-output" || true
@@ -36,5 +37,10 @@ jq -e '.organization == "acme" and .baseUrl == "https://sentry.example"' "$tmp/c
 [[ $(stat -c '%a' "$tmp/config/omarchy/signal/config.json") == 600 ]]
 [[ $(<"$tmp/token") == test-token ]]
 if grep -q 'test-token' "$tmp/accepted-output"; then printf 'setup echoed the credential\n' >&2; exit 1; fi
+
+cp "$tmp/config/omarchy/signal/config.json" "$tmp/original-config"
+MOCK_STORE_FAIL=true run_setup >"$tmp/store-failed-output" || true
+cmp "$tmp/original-config" "$tmp/config/omarchy/signal/config.json"
+grep -q 'Nothing was changed' "$tmp/store-failed-output"
 
 printf 'setup tests passed\n'

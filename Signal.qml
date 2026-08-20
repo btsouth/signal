@@ -15,7 +15,7 @@ Panel {
 
   readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property color urgent: bar ? bar.urgent : Color.urgent
-  readonly property color dim: Qt.darker(foreground, 1.5)
+  readonly property color dim: Qt.rgba(foreground.r, foreground.g, foreground.b, 0.58)
   readonly property color healthy: foreground
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   property int cursorIndex: 0
@@ -25,6 +25,7 @@ Panel {
   property string query: ""
   property string pendingAction: ""
   property var pendingIssue: null
+  property int nowTick: 0
   readonly property var visibleIssues: filteredIssues()
   readonly property var selectedIssue: visibleIssues.length > 0 ? visibleIssues[Math.max(0, Math.min(cursorIndex, visibleIssues.length - 1))] : null
 
@@ -32,7 +33,7 @@ Panel {
     var needle = String(query || "").trim().toLowerCase()
     return signal.issues.filter(function(issue) {
       if (selectedProject !== "all" && issue.project !== selectedProject) return false
-      if (lifecycleFilter === "attention" && !issue.isRegression && !issue.isEscalating && !issue.isNew) return false
+      if (lifecycleFilter === "attention" && !issue.isRegression && !issue.isEscalating) return false
       if (lifecycleFilter === "regressed" && !issue.isRegression) return false
       if (lifecycleFilter === "escalating" && !issue.isEscalating) return false
       if (lifecycleFilter === "ongoing" && (issue.isRegression || issue.isEscalating || issue.isNew)) return false
@@ -52,15 +53,43 @@ Panel {
     cursorActive = true
     if (visibleIssues.length === 0) return
     cursorIndex = Math.max(0, Math.min(visibleIssues.length - 1, cursorIndex + delta))
+    ensureCursorVisible()
+  }
+  function cycleProject(direction) {
+    var values = projects()
+    if (values.length === 0) return
+    var index = Math.max(0, values.indexOf(selectedProject))
+    selectedProject = values[(index + direction + values.length) % values.length]
+    cursorIndex = 0
+    ensureCursorVisible()
+  }
+  function selectLifecycle(index) {
+    var values = ["attention", "all", "regressed", "escalating", "ongoing"]
+    if (index < 0 || index >= values.length) return
+    lifecycleFilter = values[index]
+    cursorIndex = 0
+    ensureCursorVisible()
+  }
+  function ensureCursorVisible() {
+    Qt.callLater(function() {
+      var item = issueRepeater.itemAt(root.cursorIndex)
+      if (!item || !panelFlick.visible) return
+      var point = item.mapToItem(panelFlick.contentItem, 0, 0)
+      var top = point.y
+      var bottom = top + item.height
+      if (top < panelFlick.contentY) panelFlick.contentY = Math.max(0, top - Style.space(8))
+      else if (bottom > panelFlick.contentY + panelFlick.height) panelFlick.contentY = Math.min(panelFlick.contentHeight - panelFlick.height, bottom - panelFlick.height + Style.space(8))
+    })
   }
   function activateCursor() { if (selectedIssue) openIssue(selectedIssue) }
   function openIssue(issue) {
-    if (!issue || issue.permalink === "") return
+    if (!issue || !/^https:\/\//.test(issue.permalink)) return
     Quickshell.execDetached(["omarchy-launch-browser", issue.permalink])
     close()
   }
   function requestAction(action, issue) {
     if (!issue || signal.boolSetting("demoMode", false)) return
+    if (signal.busy) { signal.actionMessage = "Wait for the current Sentry request to finish."; return }
     pendingAction = action
     pendingIssue = issue
     confirmDialog.message = (action === "resolve" ? "Resolve " : "Archive ") + issue.shortId + "?\n\n" + issue.title
@@ -72,6 +101,7 @@ Panel {
   function ignoreSelected() { requestAction("ignore", selectedIssue) }
   function clearPendingAction() { confirmDialog.opened = false; pendingAction = ""; pendingIssue = null }
   function relativeTime(value) {
+    var tick = nowTick
     var then = new Date(String(value || "")).getTime()
     if (!isFinite(then)) return ""
     var seconds = Math.max(0, Math.floor((Date.now() - then) / 1000))
@@ -100,13 +130,24 @@ Panel {
   }
   implicitWidth: barButton.implicitWidth
   implicitHeight: barButton.implicitHeight
-  onVisibleIssuesChanged: cursorIndex = Math.max(0, Math.min(cursorIndex, visibleIssues.length - 1))
+  onVisibleIssuesChanged: {
+    cursorIndex = Math.max(0, Math.min(cursorIndex, visibleIssues.length - 1))
+    ensureCursorVisible()
+  }
   onOpenedChanged: if (opened) {
     cursorActive = false
     cursorIndex = 0
-    signal.refresh()
+    signal.refreshIfIdle()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+  } else clearPendingAction()
+
+  Connections {
+    target: signal
+    function onIssuesChanged() {
+      if (root.projects().indexOf(root.selectedProject) === -1) root.selectedProject = "all"
+    }
   }
+  Timer { interval: 60000; repeat: true; running: root.opened; onTriggered: root.nowTick++ }
 
   Service { id: signal; settings: root.settings }
 
@@ -173,9 +214,13 @@ Panel {
         else if (text === "x" || text === "X") root.resolveSelected()
         else if (text === "i" || text === "I") root.ignoreSelected()
         else if (text === "/") Qt.callLater(function() { search.forceActiveFocus() })
+        else if (text === "[") root.cycleProject(-1)
+        else if (text === "]") root.cycleProject(1)
+        else if (/^[1-5]$/.test(text)) root.selectLifecycle(Number(text) - 1)
       }
 
       Flickable {
+        id: panelFlick
         anchors.fill: parent
         contentWidth: width
         contentHeight: content.implicitHeight
@@ -289,6 +334,7 @@ Panel {
             width: parent.width
             spacing: Style.space(6)
             Repeater {
+              id: issueRepeater
               model: root.visibleIssues
               delegate: BorderSurface {
                 id: issueRow
@@ -434,8 +480,8 @@ Panel {
               elide: Text.ElideRight
             }
             Button { text: "Connect"; iconText: "󰌘"; foreground: root.foreground; tooltipText: "Replace or verify the Sentry connection"; onClicked: signal.openSetup() }
-            Button { visible: root.selectedIssue !== null && !signal.boolSetting("demoMode", false); text: "Resolve"; iconText: "󰄬"; foreground: root.foreground; onClicked: root.resolveSelected() }
-            Button { visible: root.selectedIssue !== null && !signal.boolSetting("demoMode", false); text: "Archive"; iconText: "󰈉"; foreground: root.foreground; onClicked: root.ignoreSelected() }
+            Button { visible: root.selectedIssue !== null && !signal.boolSetting("demoMode", false); enabled: !signal.busy; text: "Resolve"; iconText: "󰄬"; foreground: root.foreground; onClicked: root.resolveSelected() }
+            Button { visible: root.selectedIssue !== null && !signal.boolSetting("demoMode", false); enabled: !signal.busy; text: "Archive"; iconText: "󰈉"; foreground: root.foreground; onClicked: root.ignoreSelected() }
           }
         }
       }

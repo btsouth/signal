@@ -35,6 +35,12 @@ run_api() {
 ready=$(run_api --environment production)
 jq -e '.state == "ready" and .rateLimit.remaining == 2 and .rateLimit.limit == 40' <<<"$ready" >/dev/null
 
+limited=$(MOCK_STATUS=429 run_api --environment production)
+jq -e '.state == "ready" and .stale == true and (.message | contains("rate-limited"))' <<<"$limited" >/dev/null
+
+unavailable=$(MOCK_STATUS=503 run_api --environment production)
+jq -e '.state == "ready" and .stale == true and (.message | contains("temporarily unavailable"))' <<<"$unavailable" >/dev/null
+
 auth=$(MOCK_STATUS=401 run_api --environment staging || true)
 jq -e '.state == "error" and (.message | contains("rejected the token"))' <<<"$auth" >/dev/null
 
@@ -49,5 +55,11 @@ jq -e '.state == "error" and (.message | contains("Issue limit"))' <<<"$invalid_
 
 invalid_sort=$(run_api --sort random || true)
 jq -e '.state == "error" and (.message | contains("sort order"))' <<<"$invalid_sort" >/dev/null
+
+for invalid_origin in 'https://user@example.com' 'https://example.com/path' 'https://example.com?query' 'https://example.com:70000' 'https://-bad.example' 'https://bad..example'; do
+  printf '{"organization":"acme","baseUrl":"%s"}\n' "$invalid_origin" >"$tmp/config/omarchy/signal/config.json"
+  invalid=$(run_api || true)
+  jq -e '.state == "error" and (.message | contains("invalid Sentry URL"))' <<<"$invalid" >/dev/null
+done
 
 printf 'backend error tests passed\n'
