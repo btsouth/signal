@@ -24,6 +24,14 @@ chmod +x "$tmp/bin/secret-tool" "$tmp/bin/curl"
 result=$(PATH="$tmp/bin:$PATH" XDG_CONFIG_HOME="$tmp/config" XDG_STATE_HOME="$tmp/state" "$root/scripts/signal-api" --environment production)
 jq -e '.state == "ready" and .organization == "acme" and .issues[0].shortId == "WEB-12"' <<<"$result" >/dev/null
 
+cat >"$tmp/bin/curl" <<'EOF'
+#!/usr/bin/env bash
+exit 7
+EOF
+chmod +x "$tmp/bin/curl"
+stale=$(PATH="$tmp/bin:$PATH" XDG_CONFIG_HOME="$tmp/config" XDG_STATE_HOME="$tmp/state" "$root/scripts/signal-api" --environment production)
+jq -e '.state == "ready" and .stale == true and .issues[0].shortId == "WEB-12"' <<<"$stale" >/dev/null
+
 demo=$("$root/scripts/signal-api" --demo)
 jq -e '.state == "ready" and .demo == true and (.issues | length) == 3' <<<"$demo" >/dev/null
 

@@ -17,6 +17,8 @@ Signal is a quiet [Sentry](https://sentry.io/) incident inbox built for the Omar
 - Summarizes event volume and affected users
 - Draws a 24-hour event sparkline for each issue
 - Filters the inbox by project
+- Keeps the last successful response available when Sentry is temporarily unreachable
+- Notifies once when an issue newly enters the regressed state
 - Opens the full issue in Sentry
 - Resolves or ignores the selected issue from the panel
 - Works entirely from the keyboard: arrows, Enter, `X`, `I`, and `R`
