@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">Signal for Omarchy</title>
+  <desc id="desc">A quiet Sentry incident inbox for the Omarchy bar.</desc>
+  <rect width="1280" height="640" fill="#0b171e"/>
+  <circle cx="234" cy="272" r="112" fill="#10252f" stroke="#75b9dc" stroke-width="7"/>
+  <circle cx="234" cy="272" r="29" fill="#75b9dc"/>
+  <path d="M234 125a147 147 0 0 1 147 147" fill="none" stroke="#75b9dc" stroke-width="8" stroke-linecap="round" opacity=".35"/>
+  <path d="M234 419A147 147 0 0 1 87 272" fill="none" stroke="#75b9dc" stroke-width="8" stroke-linecap="round" opacity=".18"/>
+  <text x="430" y="247" fill="#f2f7f9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="98" font-weight="700">Signal</text>
+  <text x="436" y="318" fill="#75b9dc" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="27" letter-spacing="3">SENTRY × OMARCHY</text>
+  <text x="436" y="386" fill="#b8c8cf" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="31">Production stays quiet until it needs you.</text>
+  <rect x="436" y="432" width="202" height="48" rx="8" fill="#10252f" stroke="#315363"/>
+  <text x="461" y="464" fill="#dbe8ed" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="19">REGRESSIONS</text>
+  <rect x="654" y="432" width="184" height="48" rx="8" fill="#10252f" stroke="#315363"/>
+  <text x="680" y="464" fill="#dbe8ed" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="19">KEYBOARD</text>
+  <rect x="854" y="432" width="164" height="48" rx="8" fill="#10252f" stroke="#315363"/>
+  <text x="881" y="464" fill="#dbe8ed" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="19">NATIVE QML</text>
+</svg>

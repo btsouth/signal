@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Signal</title>
+  <desc id="desc">A quiet circular signal that becomes active when production needs attention.</desc>
+  <circle cx="64" cy="64" r="50" fill="#10252f" stroke="#75b9dc" stroke-width="3"/>
+  <circle cx="64" cy="64" r="13" fill="#75b9dc"/>
+  <path d="M64 2a62 62 0 0 1 62 62" fill="none" stroke="#75b9dc" stroke-width="4" stroke-linecap="round" opacity=".35"/>
+  <path d="M64 126A62 62 0 0 1 2 64" fill="none" stroke="#75b9dc" stroke-width="4" stroke-linecap="round" opacity=".18"/>
+</svg>

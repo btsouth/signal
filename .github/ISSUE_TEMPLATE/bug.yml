@@ -1,0 +1,53 @@
+name: Bug report
+description: Report a reproducible problem in Signal
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Signal. Remove tokens, incident payloads, and customer data before posting.
+  - type: input
+    id: version
+    attributes:
+      label: Signal version
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: omarchy
+    attributes:
+      label: Omarchy version
+      description: Run `omarchy version`.
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Data mode
+      options:
+        - Demo mode
+        - Sentry SaaS
+        - Self-hosted Sentry
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Tell us what you expected, what happened instead, and how to reproduce it.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste only Signal-related lines. Remove tokens, URLs, issue content, and customer data.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed credentials and private production data from this report.
+          required: true

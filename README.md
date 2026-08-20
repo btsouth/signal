@@ -1,32 +1,43 @@
-# Signal
-
-**Your production app broke. Know before your users tell you.**
-
-Signal is a quiet [Sentry](https://sentry.io/) incident inbox built for the Omarchy Quattro bar. When production is healthy, it stays out of the way. When an issue regresses or escalates, the bar wakes up and puts the useful evidence one click away.
-
-![Signal showing a regressed checkout error, event volume, affected users, assignment, and release](preview.png)
-
 <p align="center">
-  <img src="demo.gif" alt="Keyboard navigation through a live Signal incident inbox" width="465">
+  <img src="assets/signal-mark.svg" width="92" alt="Signal logo">
 </p>
 
-## What it does
+<h1 align="center">Signal</h1>
 
-- Shows up to 100 unresolved issues across every accessible project
-- Distinguishes new, ongoing, escalating, and regressed lifecycle states
-- Adds a count badge only for regressions and escalating issues, not ordinary backlog
-- Searches issue IDs, titles, projects, culprits, assignees, and releases locally
-- Filters by project and lifecycle without another API request
-- Supports Sentry's Recommended, Last Seen, Events, Users, Trending, and First Seen sorts
-- Summarizes event volume, affected users, assignment, priority, and release
-- Keeps a separately scoped last-known-good response for every organization/environment
-- Notifies once when an issue newly regresses or escalates, with a quiet first-run baseline
-- Opens the full issue in Sentry
-- Resolves or archives the selected issue after an explicit confirmation
-- Works entirely from the keyboard: arrows, Enter, `/`, `X`, `I`, and `R`
-- Includes a deterministic demo feed for screenshots and evaluation
+<p align="center"><strong>Your production app broke. Know before your users tell you.</strong></p>
 
-Signal talks directly to Sentry with `curl`; it installs no daemon, runtime, or package. The normal refresh interval is five minutes, opening the panel triggers an immediate refresh, concurrent refreshes are coalesced, and requests have strict connection and total timeouts. Sentry rate-limit headers are retained in the model for diagnostics.
+<p align="center">A quiet, native Sentry incident inbox for the Omarchy Quattro bar.</p>
+
+<p align="center">
+  <a href="https://github.com/tsouth89/signal/releases"><img alt="Release" src="https://img.shields.io/github/v/release/tsouth89/signal?display_name=tag&sort=semver&style=flat-square&color=75b9dc"></a>
+  <a href="https://github.com/tsouth89/signal/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/tsouth89/signal?style=flat-square&color=75b9dc"></a>
+  <img alt="Omarchy Quattro" src="https://img.shields.io/badge/Omarchy-Quattro-75b9dc?style=flat-square">
+  <img alt="Native QML" src="https://img.shields.io/badge/UI-native_QML-75b9dc?style=flat-square">
+  <img alt="Sentry" src="https://img.shields.io/badge/service-Sentry-75b9dc?style=flat-square">
+</p>
+
+<p align="center">
+  <img src="demo.gif" width="465" alt="Signal navigating a production incident inbox from the keyboard">
+</p>
+
+Signal keeps production invisible when everything is healthy. When an issue regresses or escalates, its bar icon wakes up, shows a focused attention count, and puts the useful evidence one click away—without asking you to live in another dashboard.
+
+> **Quiet by default. Useful under pressure.** The first successful refresh establishes a silent baseline. After that, Signal only alerts when something newly needs attention.
+
+## The incident inbox
+
+<p align="center">
+  <img src="preview.png" width="465" alt="Signal showing a regressed checkout error with event volume, affected users, assignment, priority, and release">
+</p>
+
+- See up to 100 unresolved issues across every accessible project
+- Separate **new**, **ongoing**, **escalating**, and **regressed** lifecycle states
+- Search issue IDs, titles, projects, culprits, assignees, and releases instantly
+- Filter by project or lifecycle without spending another API request
+- Sort using Sentry's Recommended, Last Seen, Events, Users, Trending, or First Seen order
+- See event volume, affected users, assignment, priority, culprit, and release at a glance
+- Open the full Sentry issue, or Resolve and Archive it after an explicit confirmation
+- Work entirely from the keyboard
 
 ## Install
 
@@ -34,22 +45,26 @@ Signal talks directly to Sentry with `curl`; it installs no daemon, runtime, or 
 omarchy plugin add https://github.com/tsouth89/signal.git --enable
 ```
 
+Signal installs no daemon, JavaScript runtime, SDK, or background service. It uses the tools already included with Omarchy and runs inside `omarchy-shell` as a native Quickshell/QML bar widget.
+
 ## Connect Sentry
 
-Open Signal and choose **Connect Sentry**. The setup terminal asks for:
+Open Signal from the bar and choose **Connect Sentry**. Enter your organization slug, API origin, and a Sentry authentication token.
 
-1. Your organization slug
-2. Your Sentry API origin (`https://us.sentry.io` or `https://de.sentry.io` when the organization uses a regional data silo; otherwise `https://sentry.io`)
-3. An authentication token
+Use the narrowest token scopes that support the actions you want:
 
-Recommended token scopes follow least privilege:
+| Capability | Token scope |
+| --- | --- |
+| Read and open issues | `event:read` |
+| Resolve and Archive | `event:write` |
 
-- `event:read`
-- `event:write` for Resolve and Archive
+Signal verifies the organization and read permission before changing anything. The token is stored in Secret Service through `secret-tool`; it is never written to plugin files, configuration, logs, QML state, cache files, or process arguments.
 
-Signal checks the organization and read permissions before changing anything. The token is written to Secret Service through `secret-tool`; it is never stored in the plugin directory, configuration, logs, QML state, or a child-process argument. API requests feed the authorization header to `curl` over standard input. The organization and base URL are stored in `~/.config/omarchy/signal/config.json` with user-only permissions.
+For Sentry's regional data silos, use `https://us.sentry.io` or `https://de.sentry.io`. Standard SaaS organizations use `https://sentry.io`. Self-hosted Sentry is supported through a path-free HTTPS origin.
 
-Run **Connect Sentry** again at any time to verify or replace the connection. To disconnect completely, replace `YOUR_ORG_SLUG` below and then remove Signal's local configuration:
+### Replace or disconnect
+
+Choose **Connect** again to verify or replace the active connection. To disconnect completely, replace `YOUR_ORG_SLUG` and remove Signal's local cache:
 
 ```bash
 secret-tool clear service tsouth89.signal organization YOUR_ORG_SLUG
@@ -60,8 +75,8 @@ rm -r ~/.config/omarchy/signal ~/.local/state/omarchy/signal
 
 | Key | Action |
 | --- | --- |
-| `↑` / `↓` | Select an issue |
-| `Enter` | Open the issue in Sentry |
+| `↑` / `↓` | Select an issue and keep it in view |
+| `Enter` | Open the selected issue in Sentry |
 | `/` | Search the current inbox |
 | `1`–`5` | Select Attention, All, Regressed, Escalating, or Ongoing |
 | `[` / `]` | Select the previous or next project |
@@ -70,43 +85,68 @@ rm -r ~/.config/omarchy/signal ~/.local/state/omarchy/signal
 | `R` | Refresh |
 | `Esc` | Close Signal |
 
-Right-click the bar icon to refresh without opening the panel.
+Right-click or middle-click the bar icon to refresh without opening the panel.
+
+## Settings
+
+All settings are available from Omarchy's bar-widget settings—no configuration file editing required.
+
+| Setting | Default | Range / options |
+| --- | --- | --- |
+| Refresh interval | 5 minutes | 1–60 minutes |
+| Environment | `production` | Any Sentry environment; blank includes all |
+| Sort order | Recommended | Recommended, Last Seen, Events, Users, Trending, First Seen |
+| Maximum issues | 50 | 10–100 |
+| Desktop alerts | Regressions and escalating | Regressions and escalating, regressions only, off |
+| Demo mode | Off | Realistic local feed with no Sentry request |
+
+## Designed to stay quiet
+
+- **No polling daemon:** one bounded request on the configured interval
+- **Immediate when useful:** opening the panel refreshes unless a request is already running
+- **No request pileups:** concurrent refreshes are coalesced and actions are guarded while busy
+- **No noisy first run:** the initial result becomes the notification baseline
+- **No blank offline state:** the last-known-good response is shown for network, rate-limit, and Sentry 5xx failures
+- **No cross-account bleed:** cache and alert state are isolated by API origin, organization, and environment
+- **No title leakage:** desktop alerts say that an issue needs attention without exposing incident content
+- **Bounded work:** strict connection/total timeouts and Sentry's 100-issue response cap
+
+## Security model
+
+- HTTPS-only API origins and issue links
+- Strict validation for origins, organization slugs, issue IDs, environments, limits, and sort values
+- Secret Service credential storage with transactional connection changes
+- Authorization passed to `curl` over standard input, never command arguments
+- User curl configuration disabled for authenticated requests
+- Configuration and cache files restricted to the current user
+- No telemetry, privileged commands, install hooks, or third-party runtime dependencies
+
+Community plugins execute unsandboxed inside `omarchy-shell`; inspect the small source tree before enabling any plugin.
+
+Suspected vulnerabilities should be reported privately through the repository's [security policy](SECURITY.md), never through a public issue.
 
 ## Demo mode
 
-Enable **Use demonstration data** in the bar-widget settings to display three realistic incidents without a Sentry account or network request. Actions are intentionally disabled in demo mode.
+Enable **Use demonstration data** in the widget settings to display three realistic incidents without a Sentry account or network request. Destructive actions are intentionally unavailable in demo mode. This is also the fastest way to evaluate Signal's interaction design.
 
-## Privacy and security
-
-- No telemetry
-- No privileged commands
-- No install hooks
-- No token in configuration files, logs, command arguments, or QML state
-- Network requests go only to the configured HTTPS Sentry origin
-- Organization slugs, tokens, issue IDs, sort values, limits, environments, and origins are validated before use
-- Authentication, permission, missing-resource, rate-limit, and network failures have distinct user-facing messages
-- API requests time out rather than accumulating in the shell
-
-Community plugins execute unsandboxed inside `omarchy-shell`; inspect the source before enabling any plugin.
-
-## Development
+## Development and verification
 
 ```bash
 tests/run.sh
 omarchy plugin validate .
 ```
 
-The backend tests replace `curl` and Secret Service with local fakes. They verify normalization, cache fallback, setup state, demo data, shell syntax, the manifest, and that credentials never appear in `curl` arguments. They never contact Sentry or mutate an account.
+The test suite replaces `curl` and Secret Service with local fakes. It covers response normalization, cache isolation and fallback, rate limiting, notification baselining and deduplication, setup rollback, malformed inputs, token transport, shell syntax, and manifest validation. Tests never contact Sentry or mutate an account.
 
-The submission build has also completed a live organization-token test against Sentry's US API: ingest, read, production filtering, grouping, counts, Resolve, Archive, regression recognition, and final cleanup.
+Before the 1.0 release, Signal was also exercised against a real Sentry organization: event ingest, production filtering, grouping, counts, regression detection, Resolve, Archive, and final cleanup. The plugin additionally passed repeated hot reloads and a clean remove/install/enable cycle.
 
 ## Known limits
 
-- Signal currently uses token authentication rather than browser OAuth.
-- Sentry's organization-issues endpoint caps one response at 100 issues; Signal intentionally respects that cap rather than walking pages continuously in a desktop shell.
-- A first successful refresh establishes the alert baseline and does not notify.
-- Sentry self-hosted installations must use an HTTPS origin without a path prefix.
+- Authentication uses a Sentry token rather than browser OAuth.
+- Sentry's organization-issues endpoint caps a response at 100 issues; Signal respects that limit instead of continuously walking pages inside the desktop shell.
+- The first successful refresh establishes the alert baseline and does not notify.
+- Self-hosted Sentry origins must use HTTPS and cannot include a path prefix.
 
 ## License
 
-MIT
+Signal is available under the [MIT License](LICENSE).
