@@ -240,19 +240,28 @@ Panel {
             }
           }
 
-          Row {
+          Flickable {
             visible: signal.state === "ready" && signal.issues.length > 0
             width: parent.width
-            spacing: Style.space(6)
-            Repeater {
-              model: root.projects()
-              Button {
-                required property string modelData
-                text: modelData === "all" ? "All " + signal.unresolvedCount : modelData
-                selected: root.selectedProject === modelData
-                foreground: root.foreground
-                fontFamily: root.fontFamily
-                onClicked: { root.selectedProject = modelData; root.cursorIndex = 0 }
+            implicitHeight: projectRow.implicitHeight
+            contentWidth: projectRow.implicitWidth
+            contentHeight: height
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            flickableDirection: Flickable.HorizontalFlick
+            Row {
+              id: projectRow
+              spacing: Style.space(6)
+              Repeater {
+                model: root.projects()
+                Button {
+                  required property string modelData
+                  text: modelData === "all" ? "All " + signal.unresolvedCount : modelData
+                  selected: root.selectedProject === modelData
+                  foreground: root.foreground
+                  fontFamily: root.fontFamily
+                  onClicked: { root.selectedProject = modelData; root.cursorIndex = 0 }
+                }
               }
             }
           }
@@ -358,6 +367,8 @@ Panel {
                       for (var i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y + 1)
                       ctx.stroke()
                     }
+                    onWidthChanged: requestPaint()
+                    onHeightChanged: requestPaint()
                     Component.onCompleted: requestPaint()
                   }
                 }
@@ -422,6 +433,7 @@ Panel {
               font.pixelSize: Style.font.caption
               elide: Text.ElideRight
             }
+            Button { text: "Connect"; iconText: "󰌘"; foreground: root.foreground; tooltipText: "Replace or verify the Sentry connection"; onClicked: signal.openSetup() }
             Button { visible: root.selectedIssue !== null && !signal.boolSetting("demoMode", false); text: "Resolve"; iconText: "󰄬"; foreground: root.foreground; onClicked: root.resolveSelected() }
             Button { visible: root.selectedIssue !== null && !signal.boolSetting("demoMode", false); text: "Archive"; iconText: "󰈉"; foreground: root.foreground; onClicked: root.ignoreSelected() }
           }

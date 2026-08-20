@@ -12,7 +12,7 @@ command -v curl >/dev/null || { printf 'Signal needs curl.\n'; read -r -p 'Press
 clear
 printf '\n  SIGNAL · CONNECT SENTRY\n\n'
 printf 'Create a Sentry token with org:read, project:read, event:read,\n'
-printf 'and event:write if you want Resolve and Ignore actions.\n\n'
+printf 'and event:write if you want Resolve and Archive actions.\n\n'
 current_org=$(jq -r '.organization // empty' "$config_file" 2>/dev/null || true)
 current_url=$(jq -r '.baseUrl // empty' "$config_file" 2>/dev/null || true)
 read -r -p "Organization slug${current_org:+ [$current_org]}: " organization
@@ -54,9 +54,10 @@ trap 'rm -f "$tmp" "$probe"' EXIT
 jq -n --arg organization "$organization" --arg baseUrl "$base_url" '{organization:$organization,baseUrl:$baseUrl}' >"$tmp"
 chmod 600 "$tmp"
 mv "$tmp" "$config_file"
-trap - EXIT
 printf '%s' "$token" | secret-tool store --label='Signal Sentry token' service tsouth89.signal organization "$organization"
 unset token
+rm -f "$probe"
+trap - EXIT
 
 printf '\nConnected to %s. Signal will refresh when its panel opens.\n\n' "$organization"
 read -r -p 'Press Enter to close.'
