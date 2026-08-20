@@ -98,13 +98,6 @@ Panel {
     if (issue.isNew) return "NEW"
     return "ONGOING"
   }
-  function sparkMaximum(activity) {
-    var maximum = 1
-    if (!Array.isArray(activity)) return maximum
-    for (var i = 0; i < activity.length; i++) maximum = Math.max(maximum, Number(activity[i] || 0))
-    return maximum
-  }
-
   implicitWidth: barButton.implicitWidth
   implicitHeight: barButton.implicitHeight
   onVisibleIssuesChanged: cursorIndex = Math.max(0, Math.min(cursorIndex, visibleIssues.length - 1))
@@ -378,33 +371,34 @@ Panel {
                     font.pixelSize: Style.font.caption
                     elide: Text.ElideRight
                   }
-                  Item {
-                    id: spark
+                  RowLayout {
                     width: parent.width
-                    height: Style.space(22)
-                    readonly property real maximum: root.sparkMaximum(issueRow.modelData.activity)
-                    Rectangle {
-                      anchors.left: parent.left
-                      anchors.right: parent.right
-                      anchors.bottom: parent.bottom
-                      height: 1
+                    spacing: Style.space(8)
+                    Text {
+                      text: "24h"
                       color: root.dim
-                      opacity: 0.22
+                      font.family: root.fontFamily
+                      font.pixelSize: Style.font.caption
                     }
-                    Repeater {
-                      model: issueRow.modelData.activity.length
-                      delegate: Rectangle {
-                        required property int index
-                        readonly property int sampleCount: issueRow.modelData.activity.length
-                        readonly property real gap: Style.space(2)
-                        width: Math.max(2, (spark.width - Math.max(0, sampleCount - 1) * gap) / Math.max(1, sampleCount))
-                        height: Math.max(2, spark.height * Number(issueRow.modelData.activity[index] || 0) / spark.maximum)
-                        x: index * (width + gap)
-                        anchors.bottom: spark.bottom
+                    Item {
+                      Layout.fillWidth: true
+                      implicitHeight: Style.space(5)
+                      Rectangle { anchors.fill: parent; radius: height / 2; color: root.dim; opacity: 0.16 }
+                      Rectangle {
+                        anchors.left: parent.left
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        width: Math.max(height, parent.width * issueRow.modelData.activityRatio)
                         color: root.severityColor(issueRow.modelData)
                         opacity: 0.72
-                        radius: Math.min(width / 2, Style.space(2))
+                        radius: height / 2
                       }
+                    }
+                    Text {
+                      text: root.compactNumber(issueRow.modelData.activityTotal) + " events"
+                      color: root.dim
+                      font.family: root.fontFamily
+                      font.pixelSize: Style.font.caption
                     }
                   }
                 }

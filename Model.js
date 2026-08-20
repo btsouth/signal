@@ -15,8 +15,15 @@ function normalizedIssue(raw) {
   var project = raw.project || {}
   var metadata = raw.metadata || {}
   var stats = raw.stats && Array.isArray(raw.stats["24h"]) ? raw.stats["24h"] : []
-  var activity = []
-  for (var i = 0; i < stats.length; i++) activity.push(number(stats[i] && stats[i][1], 0))
+  var activityTotal = 0
+  var activityPeak = 0
+  var activityLatest = 0
+  for (var i = 0; i < stats.length; i++) {
+    var sample = number(stats[i] && stats[i][1], 0)
+    activityTotal += sample
+    activityPeak = Math.max(activityPeak, sample)
+    if (i === stats.length - 1) activityLatest = sample
+  }
   return {
     id: String(raw.id || ""),
     shortId: String(raw.shortId || raw.id || ""),
@@ -41,7 +48,8 @@ function normalizedIssue(raw) {
     firstRelease: raw.firstRelease ? String(raw.firstRelease.shortVersion || raw.firstRelease.version || "") : "",
     lastRelease: raw.lastRelease ? String(raw.lastRelease.shortVersion || raw.lastRelease.version || "") : "",
     hasSeen: raw.hasSeen === true,
-    activity: activity
+    activityTotal: activityTotal,
+    activityRatio: activityPeak > 0 ? activityLatest / activityPeak : 0
   }
 }
 

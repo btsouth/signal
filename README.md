@@ -19,7 +19,7 @@ Signal is a quiet [Sentry](https://sentry.io/) incident inbox built for the Omar
 - Filters by project and lifecycle without another API request
 - Supports Sentry's Recommended, Last Seen, Events, Users, Trending, and First Seen sorts
 - Summarizes event volume, affected users, assignment, priority, and release
-- Draws a 24-hour event sparkline for each issue
+- Shows a 24-hour activity pulse for each issue
 - Keeps a separately scoped last-known-good response for every organization/environment
 - Notifies once when an issue newly regresses or escalates, with a quiet first-run baseline
 - Opens the full issue in Sentry
