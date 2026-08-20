@@ -98,6 +98,12 @@ Panel {
     if (issue.isNew) return "NEW"
     return "ONGOING"
   }
+  function sparkMaximum(stats) {
+    var maximum = 1
+    if (!Array.isArray(stats)) return maximum
+    for (var i = 0; i < stats.length; i++) maximum = Math.max(maximum, Number(stats[i][1] || 0))
+    return maximum
+  }
 
   implicitWidth: barButton.implicitWidth
   implicitHeight: barButton.implicitHeight
@@ -372,23 +378,32 @@ Panel {
                     font.pixelSize: Style.font.caption
                     elide: Text.ElideRight
                   }
-                  Canvas {
+                  Item {
+                    id: spark
                     width: parent.width
                     height: Style.space(22)
-                    onPaint: {
-                      var ctx = getContext("2d")
-                      ctx.clearRect(0, 0, width, height)
-                      var points = Model.sparklinePoints(issueRow.modelData.stats, width, height - 2)
-                      if (points.length < 2) return
-                      ctx.strokeStyle = root.severityColor(issueRow.modelData)
-                      ctx.lineWidth = Math.max(1, Style.normalBorderWidth)
-                      ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y + 1)
-                      for (var i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y + 1)
-                      ctx.stroke()
+                    readonly property real maximum: root.sparkMaximum(issueRow.modelData.stats)
+                    Row {
+                      anchors.fill: parent
+                      spacing: Style.space(2)
+                      Repeater {
+                        model: issueRow.modelData.stats
+                        delegate: Item {
+                          required property var modelData
+                          width: Math.max(1, (spark.width - Math.max(0, issueRow.modelData.stats.length - 1) * parent.spacing) / Math.max(1, issueRow.modelData.stats.length))
+                          height: spark.height
+                          Rectangle {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            height: Math.max(1, parent.height * Number(modelData[1] || 0) / spark.maximum)
+                            color: root.severityColor(issueRow.modelData)
+                            opacity: 0.72
+                            radius: Math.min(width / 2, Style.space(2))
+                          }
+                        }
+                      }
                     }
-                    onWidthChanged: requestPaint()
-                    onHeightChanged: requestPaint()
-                    Component.onCompleted: requestPaint()
                   }
                 }
               }
