@@ -383,25 +383,27 @@ Panel {
                     width: parent.width
                     height: Style.space(22)
                     readonly property real maximum: root.sparkMaximum(issueRow.modelData.stats)
-                    Row {
-                      anchors.fill: parent
-                      spacing: Style.space(2)
-                      Repeater {
-                        model: issueRow.modelData.stats
-                        delegate: Item {
-                          required property var modelData
-                          width: Math.max(1, (spark.width - Math.max(0, issueRow.modelData.stats.length - 1) * parent.spacing) / Math.max(1, issueRow.modelData.stats.length))
-                          height: spark.height
-                          Rectangle {
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.bottom: parent.bottom
-                            height: Math.max(1, parent.height * Number(modelData[1] || 0) / spark.maximum)
-                            color: root.severityColor(issueRow.modelData)
-                            opacity: 0.72
-                            radius: Math.min(width / 2, Style.space(2))
-                          }
-                        }
+                    Rectangle {
+                      anchors.left: parent.left
+                      anchors.right: parent.right
+                      anchors.bottom: parent.bottom
+                      height: 1
+                      color: root.dim
+                      opacity: 0.22
+                    }
+                    Repeater {
+                      model: issueRow.modelData.stats.length
+                      delegate: Rectangle {
+                        required property int index
+                        readonly property int sampleCount: issueRow.modelData.stats.length
+                        readonly property real gap: Style.space(2)
+                        width: Math.max(2, (spark.width - Math.max(0, sampleCount - 1) * gap) / Math.max(1, sampleCount))
+                        height: Math.max(2, spark.height * Number(issueRow.modelData.stats[index][1] || 0) / spark.maximum)
+                        x: index * (width + gap)
+                        anchors.bottom: spark.bottom
+                        color: root.severityColor(issueRow.modelData)
+                        opacity: 0.72
+                        radius: Math.min(width / 2, Style.space(2))
                       }
                     }
                   }
