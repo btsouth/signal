@@ -89,7 +89,7 @@ Panel {
   }
   function requestAction(action, issue) {
     if (!issue || signal.boolSetting("demoMode", false)) return
-    if (signal.busy) { signal.actionMessage = "Wait for the current Sentry request to finish."; return }
+    if (signal.busy) { signal.showActionMessage("Wait for the current Sentry request to finish."); return }
     pendingAction = action
     pendingIssue = issue
     confirmDialog.message = (action === "resolve" ? "Resolve " : "Archive ") + issue.shortId + "?\n\n" + issue.title

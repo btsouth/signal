@@ -58,6 +58,7 @@ Item {
     fetcher.running = true
   }
   function refreshIfIdle() { if (!fetcher.running && !actor.running) refresh() }
+  function showActionMessage(value) { actionMessage = value; actionNotice.restart() }
   function act(action, issueId) {
     if (fetcher.running || actor.running || boolSetting("demoMode", false)) return
     actionIssueId = String(issueId || "")

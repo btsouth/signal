@@ -55,7 +55,7 @@ Run **Connect Sentry** again at any time to verify or replace the connection. To
 
 ```bash
 secret-tool clear service tsouth89.signal organization YOUR_ORG_SLUG
-rm -r ~/.config/omarchy/signal
+rm -r ~/.config/omarchy/signal ~/.local/state/omarchy/signal
 ```
 
 ## Keyboard controls
