@@ -115,8 +115,36 @@ Panel {
     id: barButton
     anchors.fill: parent
     bar: root.bar
-    text: signal.alarming ? "󰅚" : (signal.unresolvedCount > 0 ? "󰋼" : "󰄬")
-    active: signal.alarming || signal.escalatingCount > 0
+    text: ""
+    active: signal.alarming
+    iconComponent: Component {
+      Item {
+        Text {
+          anchors.centerIn: parent
+          text: signal.alarming ? "󰅚" : (signal.unresolvedCount > 0 ? "󰋼" : "󰄬")
+          color: signal.alarming ? root.urgent : root.foreground
+          font.family: root.fontFamily
+          font.pixelSize: Style.bar.iconFont
+        }
+        Rectangle {
+          visible: signal.attentionCount > 0
+          anchors.right: parent.right
+          anchors.top: parent.top
+          width: Style.space(10)
+          height: width
+          radius: width / 2
+          color: root.urgent
+          Text {
+            anchors.centerIn: parent
+            text: signal.attentionCount > 9 ? "9+" : String(signal.attentionCount)
+            color: Color.background
+            font.family: root.fontFamily
+            font.pixelSize: Style.space(6)
+            font.bold: true
+          }
+        }
+      }
+    }
     onPressed: function(buttonCode) {
       if (buttonCode === Qt.RightButton || buttonCode === Qt.MiddleButton) signal.refresh()
       else root.toggle()
@@ -180,14 +208,14 @@ Panel {
                   width: Style.space(42); height: width; radius: width / 2
                   color: "transparent"
                   border.width: Math.max(1, Style.normalBorderWidth)
-                  border.color: (signal.alarming || signal.escalatingCount > 0) ? root.urgent : root.dim
+                  border.color: signal.alarming ? root.urgent : root.dim
                   Rectangle {
                     anchors.centerIn: parent
-                    width: (signal.alarming || signal.escalatingCount > 0) ? Style.space(14) : Style.space(8)
+                    width: signal.alarming ? Style.space(14) : Style.space(8)
                     height: width; radius: width / 2
-                    color: (signal.alarming || signal.escalatingCount > 0) ? root.urgent : root.foreground
+                    color: signal.alarming ? root.urgent : root.foreground
                     SequentialAnimation on opacity {
-                      running: signal.alarming || signal.escalatingCount > 0
+                      running: signal.alarming
                       loops: Animation.Infinite
                       NumberAnimation { to: 0.35; duration: 700; easing.type: Easing.InOutSine }
                       NumberAnimation { to: 1; duration: 700; easing.type: Easing.InOutSine }

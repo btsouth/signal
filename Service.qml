@@ -23,7 +23,8 @@ Item {
   readonly property int escalatingCount: issues.filter(function(issue) { return issue.isEscalating }).length
   readonly property int eventCount: Model.totalEvents(issues)
   readonly property int userCount: Model.affectedUsers(issues)
-  readonly property bool alarming: regressionCount > 0
+  readonly property int attentionCount: regressionCount + escalatingCount
+  readonly property bool alarming: attentionCount > 0
   readonly property int refreshIntervalSec: intSetting("refreshIntervalSec", 300, 60, 3600)
 
   function setting(name, fallback) {
