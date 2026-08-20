@@ -18,6 +18,7 @@ while (($#)); do
   if [[ $1 == -o ]]; then out=$2; shift 2; else shift; fi
 done
 printf '[{"id":"12","shortId":"WEB-12","title":"Boom","level":"error","status":"unresolved","count":"4","userCount":2,"project":{"slug":"web"}}]\n' >"$out"
+printf '200'
 EOF
 chmod +x "$tmp/bin/secret-tool" "$tmp/bin/curl"
 

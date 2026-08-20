@@ -11,12 +11,16 @@ Item {
   property string message: "Checking production…"
   property string organization: ""
   property string fetchedAt: ""
+  property string environment: ""
+  property bool stale: false
+  property var rateLimit: null
   property var issues: []
   property string actionIssueId: ""
   property string actionMessage: ""
   property bool refreshQueued: false
   readonly property int unresolvedCount: issues.length
   readonly property int regressionCount: issues.filter(function(issue) { return issue.isRegression }).length
+  readonly property int escalatingCount: issues.filter(function(issue) { return issue.isEscalating }).length
   readonly property int eventCount: Model.totalEvents(issues)
   readonly property int userCount: Model.affectedUsers(issues)
   readonly property bool alarming: regressionCount > 0
@@ -41,9 +45,13 @@ Item {
   function refresh() {
     if (fetcher.running || actor.running) { refreshQueued = true; return }
     loading = true
-    var command = [helperPath("signal-api"), "--action", "fetch", "--environment", String(setting("environment", "production"))]
+    var command = [helperPath("signal-api"), "--action", "fetch", "--environment", String(setting("environment", "production")), "--limit", String(intSetting("maxIssues", 50, 10, 100)), "--sort", sentrySort()]
     if (boolSetting("demoMode", false)) command.push("--demo")
-    else if (boolSetting("notifyRegressions", true)) command.push("--notify")
+    else {
+      var alertMode = String(setting("alertMode", "Regressions and escalating"))
+      if (alertMode === "Regressions and escalating") command.push("--notify-escalating")
+      else if (alertMode === "Regressions only") command.push("--notify")
+    }
     fetcher.command = command
     fetcher.running = true
   }
@@ -61,12 +69,24 @@ Item {
       message = String(data.message || "")
       organization = String(data.organization || "")
       fetchedAt = String(data.fetchedAt || "")
+      environment = String(data.environment || setting("environment", "production"))
+      stale = data.stale === true
+      rateLimit = data.rateLimit || null
       issues = Model.normalizeIssues(data.issues)
     } catch (error) {
       state = "error"
       message = "Sentry returned an unreadable response."
       issues = []
     }
+  }
+  function sentrySort() {
+    var value = String(setting("sortOrder", "Recommended"))
+    if (value === "Last seen") return "date"
+    if (value === "Events") return "freq"
+    if (value === "Users") return "user"
+    if (value === "Trending") return "trends"
+    if (value === "First seen") return "new"
+    return "recommended"
   }
   function openSetup() {
     Quickshell.execDetached(["omarchy-launch-terminal", "--title", "Signal setup", helperPath("signal-setup")])

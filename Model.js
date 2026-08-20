@@ -31,6 +31,14 @@ function normalizedIssue(raw) {
     lastSeen: String(raw.lastSeen || ""),
     isUnhandled: raw.isUnhandled === true,
     isRegression: raw.substatus === "regressed" || raw.isRegression === true,
+    isEscalating: raw.substatus === "escalating",
+    isNew: raw.substatus === "new",
+    assignedTo: raw.assignedTo ? String(raw.assignedTo.name || raw.assignedTo.email || raw.assignedTo.id || "") : "",
+    priority: String(raw.priority || ""),
+    platform: String(raw.platform || project.platform || ""),
+    firstRelease: raw.firstRelease ? String(raw.firstRelease.shortVersion || raw.firstRelease.version || "") : "",
+    lastRelease: raw.lastRelease ? String(raw.lastRelease.shortVersion || raw.lastRelease.version || "") : "",
+    hasSeen: raw.hasSeen === true,
     stats: stats
   }
 }
@@ -44,6 +52,7 @@ function normalizeIssues(rows) {
   }
   result.sort(function(a, b) {
     if (a.isRegression !== b.isRegression) return a.isRegression ? -1 : 1
+    if (a.isEscalating !== b.isEscalating) return a.isEscalating ? -1 : 1
     var severity = severityRank(b.level) - severityRank(a.level)
     if (severity !== 0) return severity
     return String(b.lastSeen).localeCompare(String(a.lastSeen))

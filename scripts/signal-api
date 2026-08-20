@@ -6,19 +6,28 @@ issue_id=
 environment=production
 demo=false
 notify=false
+notify_escalating=false
+limit=50
+sort=freq
 
 while (($#)); do
   case "$1" in
     --action) [[ $# -ge 2 ]] || exit 2; action=$2; shift 2 ;;
     --issue) [[ $# -ge 2 ]] || exit 2; issue_id=$2; shift 2 ;;
     --environment) [[ $# -ge 2 ]] || exit 2; environment=$2; shift 2 ;;
+    --limit) [[ $# -ge 2 ]] || exit 2; limit=$2; shift 2 ;;
+    --sort) [[ $# -ge 2 ]] || exit 2; sort=$2; shift 2 ;;
     --demo) demo=true; shift ;;
     --notify) notify=true; shift ;;
+    --notify-escalating) notify=true; notify_escalating=true; shift ;;
     *) printf 'Unknown argument: %s\n' "$1" >&2; exit 2 ;;
   esac
 done
 
 emit_error() { jq -n --arg message "$1" '{state:"error",message:$message,issues:[]}'; }
+[[ $limit =~ ^[0-9]+$ ]] && ((limit >= 10 && limit <= 100)) || { emit_error "Issue limit must be between 10 and 100."; exit 2; }
+case "$sort" in date|freq|inbox|new|recommended|trends|user) ;; *) emit_error "Unsupported Sentry sort order."; exit 2 ;; esac
+[[ $environment != *$'\n'* && $environment != *$'\r'* ]] || { emit_error "Environment contains invalid characters."; exit 2; }
 
 if $demo; then
   now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -56,32 +65,64 @@ if [[ -z $token ]]; then
   jq -n '{state:"setup",message:"Your Sentry token is missing. Connect Signal again.",issues:[]}'
   exit 0
 fi
+[[ $token =~ ^[A-Za-z0-9._-]+$ ]] || { emit_error "The stored Sentry token has an invalid format."; exit 1; }
 
 tmp=$(mktemp)
-trap 'rm -f "$tmp"' EXIT
+headers=$(mktemp)
+trap 'rm -f "$tmp" "$headers"' EXIT
 request() {
   local method=$1 url=$2 body=${3:-}
-  local args=(-fsS --connect-timeout 5 --max-time 20 -X "$method" -H "Authorization: Bearer $token" -H 'Accept: application/json')
+  local args=(-sS --connect-timeout 5 --max-time 20 -X "$method" -D "$headers" -o "$tmp" -w '%{http_code}' -H 'Accept: application/json')
   [[ -z $body ]] || args+=(-H 'Content-Type: application/json' --data "$body")
-  curl "${args[@]}" "$url" -o "$tmp"
+  local status curl_exit
+  status=$(printf 'header = "Authorization: Bearer %s"\n' "$token" | curl --config - "${args[@]}" "$url")
+  curl_exit=$?
+  if ((curl_exit != 0)); then return "$curl_exit"; fi
+  printf '%s' "$status"
+}
+
+api_error_message() {
+  local status=$1 fallback=$2 detail
+  detail=$(jq -r '.detail // .message // .error // empty' "$tmp" 2>/dev/null || true)
+  case "$status" in
+    401) printf '%s' "Sentry rejected the token. Reconnect Signal." ;;
+    403) printf '%s' "The Sentry token lacks permission for this action." ;;
+    404) printf '%s' "The organization or issue was not found." ;;
+    429) printf '%s' "Sentry rate-limited Signal. It will retry later." ;;
+    *) printf '%s' "${detail:-$fallback}" ;;
+  esac
+}
+
+rate_limit_json() {
+  local remaining reset limit_value
+  remaining=$(awk -F': *' 'tolower($1)=="x-sentry-rate-limit-remaining" {gsub("\r", "", $2); print $2}' "$headers" | tail -1)
+  reset=$(awk -F': *' 'tolower($1)=="x-sentry-rate-limit-reset" {gsub("\r", "", $2); print $2}' "$headers" | tail -1)
+  limit_value=$(awk -F': *' 'tolower($1)=="x-sentry-rate-limit-limit" {gsub("\r", "", $2); print $2}' "$headers" | tail -1)
+  jq -nc --arg remaining "$remaining" --arg reset "$reset" --arg limit "$limit_value" '{remaining:(try ($remaining|tonumber) catch null),reset:(try ($reset|tonumber) catch null),limit:(try ($limit|tonumber) catch null)}'
 }
 
 case "$action" in
   fetch)
     query='is:unresolved'
-    [[ -z $environment ]] || query+=" environment:$environment"
     encoded_query=$(jq -rn --arg value "$query" '$value|@uri')
-    url="$base_url/api/0/organizations/$organization/issues/?query=$encoded_query&statsPeriod=24h&sort=freq&limit=50"
+    encoded_environment=$(jq -rn --arg value "$environment" '$value|@uri')
+    url="$base_url/api/0/organizations/$organization/issues/?query=$encoded_query&statsPeriod=24h&groupStatsPeriod=24h&sort=$sort&limit=$limit"
+    [[ -z $environment ]] || url+="&environment=$encoded_environment"
     state_home=${XDG_STATE_HOME:-$HOME/.local/state}
-    state_dir="$state_home/omarchy/signal"
+    scope=$(printf '%s\n%s' "$organization" "$environment" | sha256sum | cut -c1-20)
+    state_dir="$state_home/omarchy/signal/$scope"
     cache_file="$state_dir/issues.json"
     seen_file="$state_dir/regressions.json"
-    if ! request GET "$url"; then
+    if ! status=$(request GET "$url"); then
       if [[ -r $cache_file ]] && jq -e '.issues | type == "array"' "$cache_file" >/dev/null 2>&1; then
         jq '.stale=true | .message="Sentry is unreachable. Showing the last successful refresh."' "$cache_file"
         exit 0
       fi
       emit_error "Could not reach Sentry."; exit 1
+    fi
+    if [[ $status != 200 ]]; then
+      emit_error "$(api_error_message "$status" "Sentry rejected the issue request.")"
+      exit 1
     fi
     if ! jq -e 'type == "array"' "$tmp" >/dev/null 2>&1; then
       message=$(jq -r '.detail // .message // "Sentry rejected the request."' "$tmp" 2>/dev/null || true)
@@ -90,15 +131,20 @@ case "$action" in
     mkdir -p "$state_dir"
     chmod 700 "$state_dir"
     payload=$(mktemp "$state_dir/issues.XXXXXX")
-    jq --arg org "$organization" --arg fetched "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '{state:"ready",organization:$org,fetchedAt:$fetched,issues:.}' "$tmp" >"$payload"
+    rate_limit=$(rate_limit_json)
+    jq --arg org "$organization" --arg env "$environment" --arg fetched "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson rate "$rate_limit" '{state:"ready",organization:$org,environment:$env,fetchedAt:$fetched,rateLimit:$rate,issues:.}' "$tmp" >"$payload"
     chmod 600 "$payload"
     mv "$payload" "$cache_file"
 
-    current_regressions=$(jq -c '[.issues[] | select(.substatus == "regressed" or .isRegression == true) | (.id|tostring)] | unique' "$cache_file")
+    if $notify_escalating; then
+      current_regressions=$(jq -c '[.issues[] | select(.substatus == "regressed" or .substatus == "escalating" or .isRegression == true) | ((.id|tostring) + ":" + (.substatus // "regressed"))] | unique' "$cache_file")
+    else
+      current_regressions=$(jq -c '[.issues[] | select(.substatus == "regressed" or .isRegression == true) | ((.id|tostring) + ":regressed")] | unique' "$cache_file")
+    fi
     if [[ -r $seen_file ]]; then
       new_count=$(jq -n --argjson current "$current_regressions" --slurpfile seen "$seen_file" '$current - ($seen[0] // []) | length')
       if $notify && ((new_count > 0)) && command -v omarchy-notification-send >/dev/null; then
-        if ((new_count == 1)); then summary="A Sentry issue regressed"; else summary="$new_count Sentry issues regressed"; fi
+        if ((new_count == 1)); then summary="A Sentry issue needs attention"; else summary="$new_count Sentry issues need attention"; fi
         omarchy-notification-send -u critical -g '󰅚' "Signal" "$summary" >/dev/null 2>&1 || true
       fi
     fi
@@ -110,7 +156,8 @@ case "$action" in
     [[ -n $issue_id ]] || { emit_error "An issue id is required."; exit 2; }
     case "$action" in resolve) status=resolved ;; ignore) status=ignored ;; unresolve) status=unresolved ;; esac
     url="$base_url/api/0/organizations/$organization/issues/$issue_id/"
-    if ! request PUT "$url" "{\"status\":\"$status\"}"; then emit_error "Sentry could not update the issue."; exit 1; fi
+    if ! http_status=$(request PUT "$url" "{\"status\":\"$status\"}"); then emit_error "Could not reach Sentry."; exit 1; fi
+    if [[ $http_status != 200 ]]; then emit_error "$(api_error_message "$http_status" "Sentry could not update the issue.")"; exit 1; fi
     jq -n --arg status "$status" --arg id "$issue_id" '{state:"ready",message:("Issue marked " + $status + "."),issueId:$id,status:$status}'
     ;;
   *) emit_error "Unsupported Signal action."; exit 2 ;;

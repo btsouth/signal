@@ -21,13 +21,17 @@
     "defaults": {
       "refreshIntervalSec": 300,
       "environment": "production",
-      "notifyRegressions": true,
+      "sortOrder": "Recommended",
+      "maxIssues": 50,
+      "alertMode": "Regressions and escalating",
       "demoMode": false
     },
     "schema": [
       { "key": "refreshIntervalSec", "type": "integer", "label": "Refresh interval (seconds)", "min": 60, "max": 3600, "step": 60, "defaultValue": 300 },
       { "key": "environment", "type": "string", "label": "Environment", "defaultValue": "production", "description": "Leave empty to include every Sentry environment." },
-      { "key": "notifyRegressions", "type": "boolean", "label": "Notify for new regressions", "defaultValue": true },
+      { "key": "sortOrder", "type": "enum", "label": "Sentry sort order", "options": ["Recommended", "Last seen", "Events", "Users", "Trending", "First seen"], "defaultValue": "Recommended" },
+      { "key": "maxIssues", "type": "integer", "label": "Maximum issues", "min": 10, "max": 100, "step": 10, "defaultValue": 50 },
+      { "key": "alertMode", "type": "enum", "label": "Desktop alerts", "options": ["Regressions and escalating", "Regressions only", "Off"], "defaultValue": "Regressions and escalating", "description": "The first successful refresh establishes a quiet baseline." },
       { "key": "demoMode", "type": "boolean", "label": "Use demonstration data", "defaultValue": false, "description": "Shows a realistic incident feed without contacting Sentry." }
     ]
   }
