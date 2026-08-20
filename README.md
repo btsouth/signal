@@ -34,8 +34,6 @@ Signal talks directly to Sentry with `curl`; it installs no daemon, runtime, or 
 omarchy plugin add https://github.com/tsouth89/signal.git --enable
 ```
 
-The public repository will be created after final review. During development, install this checkout with a local `file://` git URL.
-
 ## Connect Sentry
 
 Open Signal and choose **Connect Sentry**. The setup terminal asks for:
