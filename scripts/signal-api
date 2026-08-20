@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+action=fetch
+issue_id=
+environment=production
+demo=false
+notify=false
+
+while (($#)); do
+  case "$1" in
+    --action) [[ $# -ge 2 ]] || exit 2; action=$2; shift 2 ;;
+    --issue) [[ $# -ge 2 ]] || exit 2; issue_id=$2; shift 2 ;;
+    --environment) [[ $# -ge 2 ]] || exit 2; environment=$2; shift 2 ;;
+    --demo) demo=true; shift ;;
+    --notify) notify=true; shift ;;
+    *) printf 'Unknown argument: %s\n' "$1" >&2; exit 2 ;;
+  esac
+done
+
+emit_error() { jq -n --arg message "$1" '{state:"error",message:$message,issues:[]}'; }
+
+if $demo; then
+  now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  hour=$(date -u +%s)
+  jq -n --arg now "$now" --argjson hour "$hour" '{
+    state:"ready", organization:"acme", fetchedAt:$now, demo:true,
+    issues:[
+      {id:"451991",shortId:"CHECKOUT-42",title:"TypeError: Cannot read properties of undefined",culprit:"checkout/confirmOrder",level:"error",status:"unresolved",substatus:"regressed",permalink:"https://sentry.io",project:{slug:"checkout"},count:"1842",userCount:317,isUnhandled:true,lastSeen:$now,firstSeen:"2026-08-20T16:42:00Z",stats:{"24h":[[$hour-82800,1],[$hour-72000,0],[$hour-61200,2],[$hour-50400,1],[$hour-39600,4],[$hour-28800,3],[$hour-18000,12],[$hour-7200,38],[$hour,61]]}},
+      {id:"451772",shortId:"API-19",title:"GatewayTimeout: inventory service",culprit:"InventoryClient.reserve",level:"error",status:"unresolved",substatus:"ongoing",permalink:"https://sentry.io",project:{slug:"api"},count:"296",userCount:41,isUnhandled:false,lastSeen:"2026-08-20T18:47:00Z",firstSeen:"2026-08-19T13:08:00Z",stats:{"24h":[[$hour-82800,2],[$hour-72000,3],[$hour-61200,1],[$hour-50400,2],[$hour-39600,4],[$hour-28800,6],[$hour-18000,3],[$hour-7200,5],[$hour,4]]}},
+      {id:"449010",shortId:"WEB-7",title:"ChunkLoadError: Loading chunk 892 failed",culprit:"app/router",level:"warning",status:"unresolved",substatus:"ongoing",permalink:"https://sentry.io",project:{slug:"web"},count:"87",userCount:62,isUnhandled:false,lastSeen:"2026-08-20T17:32:00Z",firstSeen:"2026-08-17T09:21:00Z",stats:{"24h":[[$hour-82800,0],[$hour-72000,1],[$hour-61200,0],[$hour-50400,2],[$hour-39600,0],[$hour-28800,1],[$hour-18000,1],[$hour-7200,2],[$hour,1]]}}
+    ]
+  }'
+  exit 0
+fi
+
+config_home=${XDG_CONFIG_HOME:-$HOME/.config}
+config_file="$config_home/omarchy/signal/config.json"
+if [[ ! -r $config_file ]]; then
+  jq -n '{state:"setup",message:"Connect a Sentry organization to begin.",issues:[]}'
+  exit 0
+fi
+
+command -v jq >/dev/null || { emit_error "Signal needs jq (included with Omarchy)."; exit 1; }
+command -v curl >/dev/null || { emit_error "Signal needs curl (included with Omarchy)."; exit 1; }
+command -v secret-tool >/dev/null || { emit_error "Signal needs libsecret to read its token securely."; exit 1; }
+
+organization=$(jq -r '.organization // empty' "$config_file" 2>/dev/null)
+base_url=$(jq -r '.baseUrl // "https://sentry.io"' "$config_file" 2>/dev/null)
+[[ $organization =~ ^[A-Za-z0-9._-]+$ ]] || { emit_error "Signal configuration has an invalid organization slug."; exit 1; }
+[[ $base_url =~ ^https://[^/]+(:[0-9]+)?$ ]] || { emit_error "Signal configuration has an invalid Sentry URL."; exit 1; }
+[[ $issue_id =~ ^[0-9]*$ ]] || { emit_error "Invalid Sentry issue id."; exit 2; }
+
+token=$(secret-tool lookup service tsouth89.signal organization "$organization" 2>/dev/null || true)
+if [[ -z $token ]]; then
+  jq -n '{state:"setup",message:"Your Sentry token is missing. Connect Signal again.",issues:[]}'
+  exit 0
+fi
+
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+request() {
+  local method=$1 url=$2 body=${3:-}
+  local args=(-fsS --connect-timeout 5 --max-time 20 -X "$method" -H "Authorization: Bearer $token" -H 'Accept: application/json')
+  [[ -z $body ]] || args+=(-H 'Content-Type: application/json' --data "$body")
+  curl "${args[@]}" "$url" -o "$tmp"
+}
+
+case "$action" in
+  fetch)
+    query='is:unresolved'
+    [[ -z $environment ]] || query+=" environment:$environment"
+    encoded_query=$(jq -rn --arg value "$query" '$value|@uri')
+    url="$base_url/api/0/organizations/$organization/issues/?query=$encoded_query&statsPeriod=24h&sort=freq&limit=50"
+    state_home=${XDG_STATE_HOME:-$HOME/.local/state}
+    state_dir="$state_home/omarchy/signal"
+    cache_file="$state_dir/issues.json"
+    seen_file="$state_dir/regressions.json"
+    if ! request GET "$url"; then
+      if [[ -r $cache_file ]] && jq -e '.issues | type == "array"' "$cache_file" >/dev/null 2>&1; then
+        jq '.stale=true | .message="Sentry is unreachable. Showing the last successful refresh."' "$cache_file"
+        exit 0
+      fi
+      emit_error "Could not reach Sentry."; exit 1
+    fi
+    if ! jq -e 'type == "array"' "$tmp" >/dev/null 2>&1; then
+      message=$(jq -r '.detail // .message // "Sentry rejected the request."' "$tmp" 2>/dev/null || true)
+      emit_error "$message"; exit 1
+    fi
+    mkdir -p "$state_dir"
+    chmod 700 "$state_dir"
+    payload=$(mktemp "$state_dir/issues.XXXXXX")
+    jq --arg org "$organization" --arg fetched "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '{state:"ready",organization:$org,fetchedAt:$fetched,issues:.}' "$tmp" >"$payload"
+    chmod 600 "$payload"
+    mv "$payload" "$cache_file"
+
+    current_regressions=$(jq -c '[.issues[] | select(.substatus == "regressed" or .isRegression == true) | (.id|tostring)] | unique' "$cache_file")
+    if [[ -r $seen_file ]]; then
+      new_count=$(jq -n --argjson current "$current_regressions" --slurpfile seen "$seen_file" '$current - ($seen[0] // []) | length')
+      if $notify && ((new_count > 0)) && command -v omarchy-notification-send >/dev/null; then
+        if ((new_count == 1)); then summary="A Sentry issue regressed"; else summary="$new_count Sentry issues regressed"; fi
+        omarchy-notification-send -u critical -g '󰅚' "Signal" "$summary" >/dev/null 2>&1 || true
+      fi
+    fi
+    printf '%s\n' "$current_regressions" >"$seen_file"
+    chmod 600 "$seen_file"
+    cat "$cache_file"
+    ;;
+  resolve|ignore|unresolve)
+    [[ -n $issue_id ]] || { emit_error "An issue id is required."; exit 2; }
+    case "$action" in resolve) status=resolved ;; ignore) status=ignored ;; unresolve) status=unresolved ;; esac
+    url="$base_url/api/0/organizations/$organization/issues/$issue_id/"
+    if ! request PUT "$url" "{\"status\":\"$status\"}"; then emit_error "Sentry could not update the issue."; exit 1; fi
+    jq -n --arg status "$status" --arg id "$issue_id" '{state:"ready",message:("Issue marked " + $status + "."),issueId:$id,status:$status}'
+    ;;
+  *) emit_error "Unsupported Signal action."; exit 2 ;;
+esac

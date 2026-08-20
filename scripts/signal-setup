@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-$HOME/.config}
+config_dir="$config_home/omarchy/signal"
+config_file="$config_dir/config.json"
+
+command -v secret-tool >/dev/null || { printf 'Signal needs libsecret (secret-tool).\n'; read -r -p 'Press Enter to close.'; exit 1; }
+command -v jq >/dev/null || { printf 'Signal needs jq.\n'; read -r -p 'Press Enter to close.'; exit 1; }
+
+clear
+printf '\n  SIGNAL · CONNECT SENTRY\n\n'
+printf 'Create a Sentry token with org:read, project:read, event:read,\n'
+printf 'and event:write if you want Resolve and Ignore actions.\n\n'
+read -r -p 'Organization slug: ' organization
+[[ $organization =~ ^[A-Za-z0-9._-]+$ ]] || { printf '\nInvalid organization slug.\n'; read -r -p 'Press Enter to close.'; exit 1; }
+read -r -p 'Sentry URL [https://sentry.io]: ' base_url
+base_url=${base_url:-https://sentry.io}
+base_url=${base_url%/}
+[[ $base_url =~ ^https://[^/]+(:[0-9]+)?$ ]] || { printf '\nUse an HTTPS origin without a path.\n'; read -r -p 'Press Enter to close.'; exit 1; }
+read -r -s -p 'Authentication token: ' token
+printf '\n'
+[[ -n $token ]] || { printf '\nToken cannot be empty.\n'; read -r -p 'Press Enter to close.'; exit 1; }
+
+mkdir -p "$config_dir"
+chmod 700 "$config_dir"
+tmp=$(mktemp "$config_dir/config.XXXXXX")
+trap 'rm -f "$tmp"' EXIT
+jq -n --arg organization "$organization" --arg baseUrl "$base_url" '{organization:$organization,baseUrl:$baseUrl}' >"$tmp"
+chmod 600 "$tmp"
+mv "$tmp" "$config_file"
+trap - EXIT
+printf '%s' "$token" | secret-tool store --label='Signal Sentry token' service tsouth89.signal organization "$organization"
+unset token
+
+printf '\nConnected to %s. Signal will refresh when its panel opens.\n\n' "$organization"
+read -r -p 'Press Enter to close.'

@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "tsouth89.signal",
+  "name": "Signal",
+  "version": "0.1.0",
+  "author": "tsouth89",
+  "license": "MIT",
+  "description": "A quiet Sentry incident inbox for the Omarchy bar. Production stays invisible until it needs you.",
+  "kinds": ["bar-widget"],
+  "activation": "on-demand",
+  "entryPoints": {
+    "barWidget": "Signal.qml"
+  },
+  "barWidget": {
+    "displayName": "Signal",
+    "description": "Watch unresolved Sentry issues, inspect regressions, and resolve incidents without living in a dashboard.",
+    "category": "Development",
+    "aliases": ["sentry", "errors", "incidents", "production"],
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "refreshIntervalSec": 300,
+      "environment": "production",
+      "notifyRegressions": true,
+      "demoMode": false
+    },
+    "schema": [
+      { "key": "refreshIntervalSec", "type": "integer", "label": "Refresh interval (seconds)", "min": 60, "max": 3600, "step": 60, "defaultValue": 300 },
+      { "key": "environment", "type": "string", "label": "Environment", "defaultValue": "production", "description": "Leave empty to include every Sentry environment." },
+      { "key": "notifyRegressions", "type": "boolean", "label": "Notify for new regressions", "defaultValue": true },
+      { "key": "demoMode", "type": "boolean", "label": "Use demonstration data", "defaultValue": false, "description": "Shows a realistic incident feed without contacting Sentry." }
+    ]
+  }
+}
