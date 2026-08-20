@@ -111,15 +111,6 @@ Panel {
 
   Service { id: signal; settings: root.settings }
 
-  IpcHandler {
-    target: root.ipcTarget
-    function open(): void { root.open() }
-    function close(): void { root.close() }
-    function toggle(): void { root.toggle() }
-    function refresh(): string { signal.refresh(); return "ok" }
-    function status(): string { return JSON.stringify({state:signal.state,issues:signal.unresolvedCount,regressions:signal.regressionCount}) }
-  }
-
   BarIconButton {
     id: barButton
     anchors.fill: parent
