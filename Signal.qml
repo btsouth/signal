@@ -371,36 +371,6 @@ Panel {
                     font.pixelSize: Style.font.caption
                     elide: Text.ElideRight
                   }
-                  RowLayout {
-                    width: parent.width
-                    spacing: Style.space(8)
-                    Text {
-                      text: "24h"
-                      color: root.dim
-                      font.family: root.fontFamily
-                      font.pixelSize: Style.font.caption
-                    }
-                    Item {
-                      Layout.fillWidth: true
-                      implicitHeight: Style.space(5)
-                      Rectangle { anchors.fill: parent; radius: height / 2; color: root.dim; opacity: 0.16 }
-                      Rectangle {
-                        anchors.left: parent.left
-                        anchors.top: parent.top
-                        anchors.bottom: parent.bottom
-                        width: Math.max(height, parent.width * issueRow.modelData.activityRatio)
-                        color: root.severityColor(issueRow.modelData)
-                        opacity: 0.72
-                        radius: height / 2
-                      }
-                    }
-                    Text {
-                      text: root.compactNumber(issueRow.modelData.activityTotal) + " events"
-                      color: root.dim
-                      font.family: root.fontFamily
-                      font.pixelSize: Style.font.caption
-                    }
-                  }
                 }
               }
             }

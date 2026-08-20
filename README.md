@@ -4,7 +4,7 @@
 
 Signal is a quiet [Sentry](https://sentry.io/) incident inbox built for the Omarchy Quattro bar. When production is healthy, it stays out of the way. When an issue regresses or escalates, the bar wakes up and puts the useful evidence one click away.
 
-![Signal showing a regressed checkout error, event volume, affected users, and its 24-hour trend](preview.png)
+![Signal showing a regressed checkout error, event volume, affected users, assignment, and release](preview.png)
 
 <p align="center">
   <img src="demo.gif" alt="Keyboard navigation through a live Signal incident inbox" width="465">
@@ -19,7 +19,6 @@ Signal is a quiet [Sentry](https://sentry.io/) incident inbox built for the Omar
 - Filters by project and lifecycle without another API request
 - Supports Sentry's Recommended, Last Seen, Events, Users, Trending, and First Seen sorts
 - Summarizes event volume, affected users, assignment, priority, and release
-- Shows a 24-hour activity pulse for each issue
 - Keeps a separately scoped last-known-good response for every organization/environment
 - Notifies once when an issue newly regresses or escalates, with a quiet first-run baseline
 - Opens the full issue in Sentry
@@ -53,6 +52,8 @@ Recommended token scopes:
 - `event:write` for Resolve and Archive
 
 Signal checks the organization and read permissions before changing anything. The token is written to Secret Service through `secret-tool`; it is never stored in the plugin directory, configuration, logs, QML state, or a child-process argument. API requests feed the authorization header to `curl` over standard input. The organization and base URL are stored in `~/.config/omarchy/signal/config.json` with user-only permissions.
+
+Run **Connect Sentry** again at any time to verify or replace the connection. To disconnect completely, remove the Secret Service item with `secret-tool clear service omarchy-signal account sentry-api-token` and delete `~/.config/omarchy/signal/`.
 
 ## Keyboard controls
 
