@@ -27,7 +27,7 @@ Signal keeps production invisible when everything is healthy. When an issue regr
 ## The incident inbox
 
 <p align="center">
-  <img src="preview.png" width="465" alt="Signal showing a regressed checkout error with event volume, affected users, assignment, priority, and release">
+  <img src="assets/panel-closeup.png" width="459" alt="Signal showing a regressed checkout error with event volume, affected users, assignment, priority, and release">
 </p>
 
 - See up to 100 unresolved issues across every accessible project
