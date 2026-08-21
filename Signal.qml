@@ -92,7 +92,9 @@ Panel {
     if (signal.busy) { signal.showActionMessage("Wait for the current Sentry request to finish."); return }
     pendingAction = action
     pendingIssue = issue
-    confirmDialog.message = (action === "resolve" ? "Resolve " : "Archive ") + issue.shortId + "?\n\n" + issue.title
+    // ConfirmDialog is a shared shell component whose Text format is outside our
+    // control. Never pass API-provided content into it.
+    confirmDialog.message = action === "resolve" ? "Resolve the selected Sentry issue?" : "Archive the selected Sentry issue?"
     confirmDialog.confirmText = action === "resolve" ? "Resolve" : "Archive"
     confirmDialog.selectedIndex = 0
     confirmDialog.opened = true
@@ -162,6 +164,7 @@ Panel {
         Text {
           anchors.centerIn: parent
           text: signal.alarming ? "󰅚" : (signal.unresolvedCount > 0 ? "󰋼" : "󰄬")
+          textFormat: Text.PlainText
           color: signal.alarming ? root.urgent : root.foreground
           font.family: root.fontFamily
           font.pixelSize: Style.bar.iconFont
@@ -177,6 +180,7 @@ Panel {
           Text {
             anchors.centerIn: parent
             text: signal.attentionCount > 9 ? "9+" : String(signal.attentionCount)
+            textFormat: Text.PlainText
             color: Color.background
             font.family: root.fontFamily
             font.pixelSize: Style.space(6)
@@ -239,7 +243,8 @@ Panel {
             meta: signal.loading ? "LISTENING FOR PRODUCTION" : (signal.state === "ready" ?
               (signal.regressionCount > 0 ? signal.regressionCount + " REGRESSION" + (signal.regressionCount === 1 ? "" : "S") :
                signal.escalatingCount > 0 ? signal.escalatingCount + " ESCALATING" :
-               signal.unresolvedCount > 0 ? signal.unresolvedCount + " UNRESOLVED" : "PRODUCTION IS QUIET") : signal.message)
+               signal.unresolvedCount > 0 ? signal.unresolvedCount + " UNRESOLVED" : "PRODUCTION IS QUIET") :
+              (signal.state === "setup" ? "CONNECT SENTRY" : "CONNECTION NEEDS ATTENTION"))
             detail: signal.stale ? "OFFLINE" : (signal.state === "ready" ? (signal.userCount > 0 ? compactNumber(signal.userCount) + " users" : "healthy") : "")
             foreground: root.foreground
             fontFamily: root.fontFamily
@@ -317,13 +322,27 @@ Panel {
               spacing: Style.space(6)
               Repeater {
                 model: root.projects()
-                Button {
+                BorderSurface {
                   required property string modelData
-                  text: modelData === "all" ? "All " + signal.unresolvedCount : modelData
-                  selected: root.selectedProject === modelData
-                  foreground: root.foreground
-                  fontFamily: root.fontFamily
-                  onClicked: { root.selectedProject = modelData; root.cursorIndex = 0 }
+                  implicitWidth: projectLabel.implicitWidth + Style.space(18)
+                  implicitHeight: projectLabel.implicitHeight + Style.space(10)
+                  radius: Style.cornerRadius
+                  color: root.selectedProject === modelData ? Style.hoverFillFor(root.foreground, Color.accent) : "transparent"
+                  borderSpec: root.selectedProject === modelData ? Border.controlSpec("hover-cursor", root.foreground, Color.accent) : Border.controlSpec("normal", root.foreground, Color.accent)
+                  Text {
+                    id: projectLabel
+                    anchors.centerIn: parent
+                    text: parent.modelData === "all" ? "All " + signal.unresolvedCount : parent.modelData
+                    textFormat: Text.PlainText
+                    color: root.foreground
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.caption
+                  }
+                  MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: { root.selectedProject = parent.modelData; root.cursorIndex = 0 }
+                  }
                 }
               }
             }
@@ -368,6 +387,7 @@ Panel {
                     Text {
                       Layout.fillWidth: true
                       text: issueRow.modelData.title
+                      textFormat: Text.PlainText
                       color: root.foreground
                       font.family: root.fontFamily
                       font.pixelSize: Style.font.body
@@ -376,6 +396,7 @@ Panel {
                     }
                     Text {
                       text: root.lifecycleLabel(issueRow.modelData)
+                      textFormat: Text.PlainText
                       color: root.severityColor(issueRow.modelData)
                       font.family: root.fontFamily
                       font.pixelSize: Style.font.caption
@@ -383,6 +404,7 @@ Panel {
                     }
                     Text {
                       text: root.relativeTime(issueRow.modelData.lastSeen)
+                      textFormat: Text.PlainText
                       color: root.dim
                       font.family: root.fontFamily
                       font.pixelSize: Style.font.caption
@@ -394,6 +416,7 @@ Panel {
                     Text {
                       Layout.fillWidth: true
                       text: issueRow.modelData.shortId + "  ·  " + issueRow.modelData.project + (issueRow.modelData.culprit !== "" ? "  ·  " + issueRow.modelData.culprit : "")
+                      textFormat: Text.PlainText
                       color: root.dim
                       font.family: root.fontFamily
                       font.pixelSize: Style.font.caption
@@ -401,6 +424,7 @@ Panel {
                     }
                     Text {
                       text: root.compactNumber(issueRow.modelData.count) + " events  ·  " + root.compactNumber(issueRow.modelData.userCount) + " users"
+                      textFormat: Text.PlainText
                       color: root.dim
                       font.family: root.fontFamily
                       font.pixelSize: Style.font.caption
@@ -412,6 +436,7 @@ Panel {
                     text: (issueRow.modelData.assignedTo !== "" ? "Assigned " + issueRow.modelData.assignedTo : "Unassigned")
                       + (issueRow.modelData.priority !== "" ? "  ·  " + issueRow.modelData.priority + " priority" : "")
                       + (issueRow.modelData.lastRelease !== "" ? "  ·  " + issueRow.modelData.lastRelease : "")
+                    textFormat: Text.PlainText
                     color: root.dim
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.caption
@@ -433,6 +458,7 @@ Panel {
               id: emptyFiltered
               anchors.centerIn: parent
               text: "No issues match these filters."
+              textFormat: Text.PlainText
               color: root.dim
               font.family: root.fontFamily
               font.pixelSize: Style.font.body
@@ -450,9 +476,9 @@ Panel {
               id: quietColumn
               anchors.centerIn: parent
               spacing: Style.space(6)
-              Text { anchors.horizontalCenter: parent.horizontalCenter; text: "󰄬"; color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.display }
-              Text { anchors.horizontalCenter: parent.horizontalCenter; text: "Nothing needs you."; color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.title; font.bold: true }
-              Text { anchors.horizontalCenter: parent.horizontalCenter; text: "No unresolved issues in this environment."; color: root.dim; font.family: root.fontFamily; font.pixelSize: Style.font.body }
+              Text { anchors.horizontalCenter: parent.horizontalCenter; text: "󰄬"; textFormat: Text.PlainText; color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.display }
+              Text { anchors.horizontalCenter: parent.horizontalCenter; text: "Nothing needs you."; textFormat: Text.PlainText; color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.title; font.bold: true }
+              Text { anchors.horizontalCenter: parent.horizontalCenter; text: "No unresolved issues in this environment."; textFormat: Text.PlainText; color: root.dim; font.family: root.fontFamily; font.pixelSize: Style.font.body }
             }
           }
 
@@ -460,7 +486,7 @@ Panel {
             visible: signal.state === "setup" || signal.state === "error"
             width: parent.width
             spacing: Style.space(10)
-            Text { width: parent.width; wrapMode: Text.WordWrap; text: signal.message; color: root.dim; font.family: root.fontFamily; font.pixelSize: Style.font.body }
+            Text { width: parent.width; wrapMode: Text.WordWrap; text: signal.message; textFormat: Text.PlainText; color: root.dim; font.family: root.fontFamily; font.pixelSize: Style.font.body }
             Row {
               spacing: Style.space(8)
               Button { text: signal.state === "setup" ? "Connect Sentry" : "Reconnect"; iconText: "󰌘"; bordered: true; foreground: root.foreground; onClicked: signal.openSetup() }
@@ -474,6 +500,7 @@ Panel {
             Text {
               Layout.fillWidth: true
               text: signal.actionMessage !== "" ? signal.actionMessage : (signal.loading ? "Refreshing…" : (signal.stale ? signal.message : "↑↓ select  ·  Enter open  ·  / search  ·  X resolve  ·  I archive  ·  R refresh"))
+              textFormat: Text.PlainText
               color: root.dim
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption

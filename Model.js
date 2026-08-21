@@ -2,7 +2,22 @@
 
 function number(value, fallback) {
   var parsed = Number(value)
-  return isFinite(parsed) ? parsed : fallback
+  return isFinite(parsed) && parsed >= 0 ? Math.min(parsed, 9007199254740991) : fallback
+}
+
+// Sentry fields are remote input. Keep them plain, single-line and bounded before
+// they ever reach layout, filtering, notifications, or browser-launch code.
+function cleanText(value, fallback, maxLength) {
+  var text = String(value === undefined || value === null || value === "" ? (fallback || "") : value)
+  text = text.replace(/[\u0000-\u001f\u007f-\u009f\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, " ")
+  text = text.replace(/\s+/g, " ").trim()
+  if (text.length > maxLength) text = text.slice(0, Math.max(0, maxLength - 1)) + "…"
+  return text
+}
+
+function safePermalink(value) {
+  var link = cleanText(value, "", 2048)
+  return /^https:\/\/[^\s]+$/.test(link) ? link : ""
 }
 
 function severityRank(level) {
@@ -15,28 +30,28 @@ function normalizedIssue(raw) {
   var project = raw.project || {}
   var metadata = raw.metadata || {}
   return {
-    id: String(raw.id || ""),
-    shortId: String(raw.shortId || raw.id || ""),
-    title: String(raw.title || metadata.title || "Unknown error"),
-    culprit: String(raw.culprit || metadata.function || ""),
-    level: String(raw.level || "error").toLowerCase(),
-    status: String(raw.status || "unresolved"),
-    substatus: String(raw.substatus || "ongoing"),
-    permalink: String(raw.permalink || ""),
-    project: String(project.slug || project.name || raw.project || ""),
+    id: cleanText(raw.id, "", 32),
+    shortId: cleanText(raw.shortId || raw.id, "", 80),
+    title: cleanText(raw.title || metadata.title, "Unknown error", 300),
+    culprit: cleanText(raw.culprit || metadata.function, "", 200),
+    level: cleanText(raw.level, "error", 32).toLowerCase(),
+    status: cleanText(raw.status, "unresolved", 32),
+    substatus: cleanText(raw.substatus, "ongoing", 32),
+    permalink: safePermalink(raw.permalink),
+    project: cleanText(project.slug || project.name || raw.project, "", 100),
     count: number(raw.count, 0),
     userCount: number(raw.userCount, 0),
-    firstSeen: String(raw.firstSeen || ""),
-    lastSeen: String(raw.lastSeen || ""),
+    firstSeen: cleanText(raw.firstSeen, "", 64),
+    lastSeen: cleanText(raw.lastSeen, "", 64),
     isUnhandled: raw.isUnhandled === true,
     isRegression: raw.substatus === "regressed" || raw.isRegression === true,
     isEscalating: raw.substatus === "escalating",
     isNew: raw.substatus === "new",
-    assignedTo: raw.assignedTo ? String(raw.assignedTo.name || raw.assignedTo.email || raw.assignedTo.id || "") : "",
-    priority: String(raw.priority || ""),
-    platform: String(raw.platform || project.platform || ""),
-    firstRelease: raw.firstRelease ? String(raw.firstRelease.shortVersion || raw.firstRelease.version || "") : "",
-    lastRelease: raw.lastRelease ? String(raw.lastRelease.shortVersion || raw.lastRelease.version || "") : "",
+    assignedTo: raw.assignedTo ? cleanText(raw.assignedTo.name || raw.assignedTo.email || raw.assignedTo.id, "", 160) : "",
+    priority: cleanText(raw.priority, "", 32),
+    platform: cleanText(raw.platform || project.platform, "", 64),
+    firstRelease: raw.firstRelease ? cleanText(raw.firstRelease.shortVersion || raw.firstRelease.version, "", 160) : "",
+    lastRelease: raw.lastRelease ? cleanText(raw.lastRelease.shortVersion || raw.lastRelease.version, "", 160) : "",
     hasSeen: raw.hasSeen === true
   }
 }

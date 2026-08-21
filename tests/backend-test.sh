@@ -30,6 +30,8 @@ result=$(PATH="$tmp/bin:$PATH" XDG_CONFIG_HOME="$tmp/config" XDG_STATE_HOME="$tm
 jq -e '.state == "ready" and .organization == "acme" and .issues[0].shortId == "WEB-12"' <<<"$result" >/dev/null
 if grep -q 'test-token' "$tmp/curl-args"; then printf 'token leaked into curl arguments\n' >&2; exit 1; fi
 grep -q '^header = "Authorization: Bearer test-token"$' "$tmp/curl-stdin"
+grep -qx -- '--max-filesize' "$tmp/curl-args"
+grep -qx -- '5242880' "$tmp/curl-args"
 
 cat >"$tmp/bin/curl" <<'EOF'
 #!/usr/bin/env bash

@@ -4,6 +4,7 @@ set -euo pipefail
 config_home=${XDG_CONFIG_HOME:-$HOME/.config}
 config_dir="$config_home/omarchy/signal"
 config_file="$config_dir/config.json"
+[[ ! -L $config_dir && ! -L $config_file ]] || { printf 'Signal refuses symbolic links for its configuration path.\n'; read -r -p 'Press Enter to close.'; exit 1; }
 
 validate_origin() {
   local origin_re='^https://([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*|\[[0-9A-Fa-f:]+\])(:([0-9]{1,5}))?$' port
@@ -38,7 +39,7 @@ printf '\nChecking organization and token permissions…\n'
 probe=$(mktemp)
 trap 'rm -f "$probe"' EXIT
 probe_url="$base_url/api/0/organizations/$organization/issues/?query=is%3Aunresolved&limit=1"
-status=$(printf 'header = "Authorization: Bearer %s"\n' "$token" | curl -q --config - --proto '=https' --proto-redir '=https' -sS --connect-timeout 5 --max-time 20 -o "$probe" -w '%{http_code}' -H 'Accept: application/json' "$probe_url") || {
+status=$(printf 'header = "Authorization: Bearer %s"\n' "$token" | curl -q --config - --proto '=https' --proto-redir '=https' -sS --connect-timeout 5 --max-time 20 --max-filesize 1048576 -o "$probe" -w '%{http_code}' -H 'Accept: application/json' "$probe_url") || {
   printf '\nCould not reach Sentry. Check the API origin and network.\n'; unset token; read -r -p 'Press Enter to close.'; exit 1;
 }
 if [[ $status != 200 ]] || ! jq -e 'type == "array"' "$probe" >/dev/null 2>&1; then

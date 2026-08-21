@@ -55,10 +55,11 @@ fi
 
 config_home=${XDG_CONFIG_HOME:-$HOME/.config}
 config_file="$config_home/omarchy/signal/config.json"
-if [[ ! -r $config_file ]]; then
+if [[ ! -e $config_file ]]; then
   jq -n '{state:"setup",message:"Connect a Sentry organization to begin.",issues:[]}'
   exit 0
 fi
+[[ -f $config_file && ! -L $config_file && -r $config_file ]] || { emit_error "Signal configuration must be a readable regular file, not a symbolic link."; exit 1; }
 
 command -v curl >/dev/null || { emit_error "Signal needs curl (included with Omarchy)."; exit 1; }
 command -v secret-tool >/dev/null || { emit_error "Signal needs libsecret to read its token securely."; exit 1; }
@@ -81,7 +82,7 @@ headers=$(mktemp)
 trap 'rm -f "$tmp" "$headers"' EXIT
 request() {
   local method=$1 url=$2 body=${3:-}
-  local args=(--proto '=https' --proto-redir '=https' -sS --connect-timeout 5 --max-time 20 -X "$method" -D "$headers" -o "$tmp" -w '%{http_code}' -H 'Accept: application/json')
+  local args=(--proto '=https' --proto-redir '=https' -sS --connect-timeout 5 --max-time 20 --max-filesize 5242880 -X "$method" -D "$headers" -o "$tmp" -w '%{http_code}' -H 'Accept: application/json')
   [[ -z $body ]] || args+=(-H 'Content-Type: application/json' --data "$body")
   local status curl_exit
   status=$(printf 'header = "Authorization: Bearer %s"\n' "$token" | curl -q --config - "${args[@]}" "$url")
@@ -112,7 +113,7 @@ rate_limit_json() {
 
 serve_stale() {
   local stale_message=$1 rate
-  [[ -r $cache_file ]] && jq -e '.issues | type == "array"' "$cache_file" >/dev/null 2>&1 || return 1
+  [[ -f $cache_file && ! -L $cache_file && -r $cache_file ]] && jq -e '.issues | type == "array"' "$cache_file" >/dev/null 2>&1 || return 1
   rate=$(rate_limit_json)
   jq --arg message "$stale_message" --argjson rate "$rate" '.stale=true | .message=$message | .rateLimit=$rate' "$cache_file"
 }
@@ -144,6 +145,7 @@ case "$action" in
       emit_error "$message"; exit 1
     fi
     mkdir -p "$state_dir"
+    [[ -d $state_dir && ! -L $state_dir ]] || { emit_error "Signal state path is not a safe directory."; exit 1; }
     chmod 700 "$state_dir"
     payload=$(mktemp "$state_dir/issues.XXXXXX")
     rate_limit=$(rate_limit_json)
@@ -156,15 +158,17 @@ case "$action" in
     else
       current_regressions=$(jq -c '[.issues[] | select(.substatus == "regressed" or .isRegression == true) | ((.id|tostring) + ":regressed")] | unique' "$cache_file")
     fi
-    if [[ -r $seen_file ]]; then
+    if [[ -f $seen_file && ! -L $seen_file && -r $seen_file ]]; then
       new_count=$(jq -n --argjson current "$current_regressions" --slurpfile seen "$seen_file" '$current - ($seen[0] // []) | length')
       if $notify && ((new_count > 0)) && command -v omarchy-notification-send >/dev/null; then
         if ((new_count == 1)); then summary="A Sentry issue needs attention"; else summary="$new_count Sentry issues need attention"; fi
         omarchy-notification-send -u critical -g '󰅚' "Signal" "$summary" >/dev/null 2>&1 || true
       fi
     fi
-    printf '%s\n' "$current_regressions" >"$seen_file"
-    chmod 600 "$seen_file"
+    seen_tmp=$(mktemp "$state_dir/regressions.XXXXXX")
+    printf '%s\n' "$current_regressions" >"$seen_tmp"
+    chmod 600 "$seen_tmp"
+    mv "$seen_tmp" "$seen_file"
     cat "$cache_file"
     ;;
   resolve|ignore|unresolve)

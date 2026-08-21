@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1 — 2026-08-21
+
+- Render all remote Sentry fields as bounded plain text, including project filters and confirmations
+- Cap API responses at 5 MiB and connection probes at 1 MiB
+- Reject symbolic links in plugin-owned configuration, cache, and notification state paths
+- Atomically replace notification baselines and validate HTTPS permalinks before opening them
+
 ## 1.0.0 — 2026-08-20
 
 - Native bar inbox for unresolved Sentry issues
