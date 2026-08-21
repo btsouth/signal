@@ -47,6 +47,12 @@ omarchy plugin add https://github.com/tsouth89/signal.git --enable
 
 Signal installs no daemon, JavaScript runtime, SDK, or background service. It uses the tools already included with Omarchy and runs inside `omarchy-shell` as a native Quickshell/QML bar widget.
 
+### Requirements
+
+- Omarchy 4 (Quattro)
+- `curl` and `jq` (included with Omarchy)
+- `secret-tool` from libsecret (included with Omarchy)
+
 ## Connect Sentry
 
 Open Signal from the bar and choose **Connect Sentry**. Enter your organization slug, API origin, and a Sentry authentication token.
@@ -70,6 +76,14 @@ Choose **Connect** again to verify or replace the active connection. To disconne
 secret-tool clear service tsouth89.signal organization YOUR_ORG_SLUG
 rm -r ~/.config/omarchy/signal ~/.local/state/omarchy/signal
 ```
+
+## Remove Signal
+
+```bash
+omarchy plugin remove tsouth89.signal
+```
+
+To remove the Sentry credential and cached issue data too, run the disconnect commands above before or after removing the plugin.
 
 ## Keyboard controls
 
