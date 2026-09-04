@@ -9,8 +9,8 @@
 <p align="center">A quiet, native Sentry incident inbox for the Omarchy Quattro bar.</p>
 
 <p align="center">
-  <a href="https://github.com/tsouth89/signal/releases"><img alt="Release" src="https://img.shields.io/github/v/release/tsouth89/signal?display_name=tag&sort=semver&style=flat-square&color=75b9dc"></a>
-  <a href="https://github.com/tsouth89/signal/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/tsouth89/signal?style=flat-square&color=75b9dc"></a>
+  <a href="https://github.com/btsouth/signal/releases"><img alt="Release" src="https://img.shields.io/github/v/release/btsouth/signal?display_name=tag&sort=semver&style=flat-square&color=75b9dc"></a>
+  <a href="https://github.com/btsouth/signal/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/btsouth/signal?style=flat-square&color=75b9dc"></a>
   <img alt="Omarchy Quattro" src="https://img.shields.io/badge/Omarchy-Quattro-75b9dc?style=flat-square">
   <img alt="Native QML" src="https://img.shields.io/badge/UI-native_QML-75b9dc?style=flat-square">
   <img alt="Sentry" src="https://img.shields.io/badge/service-Sentry-75b9dc?style=flat-square">
@@ -42,7 +42,7 @@ Signal keeps production invisible when everything is healthy. When an issue regr
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/tsouth89/signal.git --enable
+omarchy plugin add https://github.com/btsouth/signal.git --enable
 ```
 
 Signal installs no daemon, JavaScript runtime, SDK, or background service. It uses the tools already included with Omarchy and runs inside `omarchy-shell` as a native Quickshell/QML bar widget.
