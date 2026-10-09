@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.2 - 2026-10-08
+
+- Colors work again on Qt 6.12. QtQuick now ships its own `Color` type, which hid the
+  shell's `Color` palette and left colors undefined. The plugin reads it as
+  `Commons.Color`, the same change Omarchy made for its own shell.
+
 ## 1.0.1 — 2026-08-21
 
 - Render all remote Sentry fields as bounded plain text, including project filters and confirmations
