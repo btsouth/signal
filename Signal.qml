@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "Model.js" as Model
 
@@ -13,8 +14,8 @@ Panel {
   ipcTarget: "tsouth89.signal"
   manageIpc: false
 
-  readonly property color foreground: bar ? bar.foreground : Color.foreground
-  readonly property color urgent: bar ? bar.urgent : Color.urgent
+  readonly property color foreground: bar ? bar.foreground : Commons.Color.foreground
+  readonly property color urgent: bar ? bar.urgent : Commons.Color.urgent
   readonly property color dim: Qt.rgba(foreground.r, foreground.g, foreground.b, 0.58)
   readonly property color healthy: foreground
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
@@ -181,7 +182,7 @@ Panel {
             anchors.centerIn: parent
             text: signal.attentionCount > 9 ? "9+" : String(signal.attentionCount)
             textFormat: Text.PlainText
-            color: Color.background
+            color: Commons.Color.background
             font.family: root.fontFamily
             font.pixelSize: Style.space(6)
             font.bold: true
@@ -327,8 +328,8 @@ Panel {
                   implicitWidth: projectLabel.implicitWidth + Style.space(18)
                   implicitHeight: projectLabel.implicitHeight + Style.space(10)
                   radius: Style.cornerRadius
-                  color: root.selectedProject === modelData ? Style.hoverFillFor(root.foreground, Color.accent) : "transparent"
-                  borderSpec: root.selectedProject === modelData ? Border.controlSpec("hover-cursor", root.foreground, Color.accent) : Border.controlSpec("normal", root.foreground, Color.accent)
+                  color: root.selectedProject === modelData ? Style.hoverFillFor(root.foreground, Commons.Color.accent) : "transparent"
+                  borderSpec: root.selectedProject === modelData ? Border.controlSpec("hover-cursor", root.foreground, Commons.Color.accent) : Border.controlSpec("normal", root.foreground, Commons.Color.accent)
                   Text {
                     id: projectLabel
                     anchors.centerIn: parent
@@ -362,8 +363,8 @@ Panel {
                 width: parent.width
                 implicitHeight: issueContent.implicitHeight + Style.space(20)
                 radius: Style.cornerRadius
-                color: root.cursorActive && root.cursorIndex === index ? Style.hoverFillFor(root.foreground, Color.accent) : "transparent"
-                borderSpec: root.cursorActive && root.cursorIndex === index ? Border.controlSpec("hover-cursor", root.foreground, Color.accent) : Border.controlSpec("normal", root.foreground, Color.accent)
+                color: root.cursorActive && root.cursorIndex === index ? Style.hoverFillFor(root.foreground, Commons.Color.accent) : "transparent"
+                borderSpec: root.cursorActive && root.cursorIndex === index ? Border.controlSpec("hover-cursor", root.foreground, Commons.Color.accent) : Border.controlSpec("normal", root.foreground, Commons.Color.accent)
 
                 MouseArea {
                   anchors.fill: parent
@@ -452,7 +453,7 @@ Panel {
             width: parent.width
             implicitHeight: emptyFiltered.implicitHeight + Style.space(24)
             radius: Style.cornerRadius
-            borderSpec: Border.controlSpec("normal", root.foreground, Color.accent)
+            borderSpec: Border.controlSpec("normal", root.foreground, Commons.Color.accent)
             color: "transparent"
             Text {
               id: emptyFiltered
@@ -470,7 +471,7 @@ Panel {
             width: parent.width
             implicitHeight: quietColumn.implicitHeight + Style.space(32)
             radius: Style.cornerRadius
-            borderSpec: Border.controlSpec("normal", root.foreground, Color.accent)
+            borderSpec: Border.controlSpec("normal", root.foreground, Commons.Color.accent)
             color: "transparent"
             Column {
               id: quietColumn
